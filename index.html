@@ -530,9 +530,9 @@
 <!-- ═══════ LOGIN ═══════════════════════════════════════════════════ -->
 <div id="login-screen">
   <div class="login-card">
-    <div class="login-logo">⚽</div>
+    <div class="login-logo"><svg viewBox="0 0 100 80" width="48" height="38"><path d="M15 8 Q50 -5 85 8" stroke="#1a2a3a" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M8 12 Q8 5 15 8" stroke="#1a2a3a" stroke-width="5" fill="none"/><path d="M85 8 Q92 11 92 20 L92 65 Q92 72 85 72" stroke="#1a2a3a" stroke-width="5" fill="none"/><rect x="8" y="18" width="26" height="52" rx="3" fill="#2956a3"/><rect x="37" y="18" width="26" height="52" rx="3" fill="#2e8b47"/><rect x="66" y="18" width="26" height="52" rx="3" fill="#2956a3"/><text x="21" y="54" text-anchor="middle" fill="white" font-size="30" font-weight="700" font-family="Arial">C</text><text x="50" y="54" text-anchor="middle" fill="white" font-size="30" font-weight="700" font-family="Arial">D</text><text x="79" y="54" text-anchor="middle" fill="white" font-size="30" font-weight="700" font-family="Arial">P</text></svg></div>
     <h1>Pagos CDP</h1>
-    <p>Club de Profesionales · Sistema de Comprobantes</p>
+    <p>Club de Profesionales JJ Urquiza · C. del Uruguay</p>
 
     <div class="login-tabs">
       <button class="login-tab active" onclick="setLoginMode('delegado')">Delegado</button>
@@ -573,10 +573,10 @@
   <!-- Header -->
   <div class="header">
     <div class="header-left">
-      <div class="header-logo">⚽</div>
+      <div class="header-logo"><svg viewBox="0 0 100 80" width="30" height="24"><path d="M15 8 Q50 -5 85 8" stroke="rgba(255,255,255,0.8)" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M8 12 Q8 5 15 8" stroke="rgba(255,255,255,0.8)" stroke-width="5" fill="none"/><path d="M85 8 Q92 11 92 20 L92 65 Q92 72 85 72" stroke="rgba(255,255,255,0.8)" stroke-width="5" fill="none"/><rect x="8" y="18" width="26" height="52" rx="3" fill="#4a8ad4"/><rect x="37" y="18" width="26" height="52" rx="3" fill="#4aba6a"/><rect x="66" y="18" width="26" height="52" rx="3" fill="#4a8ad4"/><text x="21" y="54" text-anchor="middle" fill="white" font-size="30" font-weight="700" font-family="Arial">C</text><text x="50" y="54" text-anchor="middle" fill="white" font-size="30" font-weight="700" font-family="Arial">D</text><text x="79" y="54" text-anchor="middle" fill="white" font-size="30" font-weight="700" font-family="Arial">P</text></svg></div>
       <div>
         <div class="header-title">Pagos CDP</div>
-        <div class="header-equipo" id="header-subtitulo">Club de Profesionales</div>
+        <div class="header-equipo" id="header-subtitulo">Club de Profesionales JJ Urquiza</div>
       </div>
     </div>
     <div class="header-right">
@@ -956,6 +956,13 @@ const EQUIPOS_FALLBACK = [
 function getLabelMas(cat) {
   return (cat || '').toLowerCase().includes('senior') ? '+50' : '+35';
 }
+// Mapea tipo socio del Sheet a label legible
+function formatTipoSocio(raw) {
+  const s = (raw || 'Activo').trim().toUpperCase();
+  if (s.includes('COL')) return 'Colaborador';
+  if (s === 'PASIVO') return 'Pasivo';
+  return 'Activo';
+}
 function getLabelMasById(equipoId) {
   const eq = (APP.equipos || EQUIPOS_FALLBACK).find(e =>
     e.id.replace(/[\s_]+/g,'').toLowerCase() === String(equipoId||'').replace(/[\s_]+/g,'').toLowerCase()
@@ -1179,7 +1186,7 @@ function iniciarApp() {
   if (APP.rol === 'delegado') {
     tabs.innerHTML = `
       <button class="nav-tab active" onclick="navTo('mis-comprobantes', this)">📋 Cargar Comprobantes</button>
-      <button class="nav-tab" onclick="navTo('habilitaciones', this)">🏅 Habilitaciones</button>
+      <button class="nav-tab" onclick="navTo('habilitaciones', this)">✅ Habilitaciones</button>
       <button class="nav-tab" onclick="navTo('historial', this)">📂 Historial</button>
       <button class="nav-tab" onclick="navTo('salud-delegado', this)">🏥 Salud</button>
       <button class="nav-tab" onclick="navTo('gestion-delegado', this)">⚙️ Gestión</button>
@@ -1932,7 +1939,7 @@ async function renderHabilitaciones() {
         </div>
       </div>
       <div class="card">
-        <div class="card-title">🏅 Habilitaciones del plantel</div>
+        <div class="card-title">✅ Habilitaciones del plantel</div>
         <div class="tabla-wrapper">
           <table>
             <thead>
@@ -1946,11 +1953,11 @@ async function renderHabilitaciones() {
             <tbody>
               ${jugadores.map((j,i) => {
                 const est = estadoColor[j.estado] || { bg:'#f3f4f6', color:'#374151', icono:'❓' };
-                const tipoS = (j.tipoSocio||'Activo').toUpperCase();
-                const tipoBg = tipoS === 'PASIVO' ? '#ede9fe' : tipoS.includes('COL') ? '#fff7ed' : '#f0f9ff';
-                const tipoColor = tipoS === 'PASIVO' ? '#6d28d9' : tipoS.includes('COL') ? '#c2410c' : '#0369a1';
+                const tipoLabel = formatTipoSocio(j.tipoSocio);
+                const tipoBg = tipoLabel === 'Pasivo' ? '#ede9fe' : tipoLabel === 'Colaborador' ? '#fff7ed' : '#f0f9ff';
+                const tipoColor = tipoLabel === 'Pasivo' ? '#6d28d9' : tipoLabel === 'Colaborador' ? '#c2410c' : '#0369a1';
                 const badges = [
-                  '<span style="font-size:0.65rem;font-weight:600;padding:1px 6px;border-radius:4px;background:' + tipoBg + ';color:' + tipoColor + '">' + (j.tipoSocio||'Activo') + '</span>',
+                  '<span style="font-size:0.65rem;font-weight:600;padding:1px 6px;border-radius:4px;background:' + tipoBg + ';color:' + tipoColor + '">' + tipoLabel + '</span>',
                   j.mas35 ? '<span class="badge-mas35">' + habLabelMas + '</span>' : '',
                   j.ic    ? '<span class="badge-ic">IC</span>'    : ''
                 ].filter(Boolean).join('');
@@ -2036,7 +2043,7 @@ async function renderGestionJugadores(equipoFiltro = '') {
                             <td style="font-family:'JetBrains Mono',monospace;font-size:0.78rem;color:var(--gris3)">${j.id}</td>
                             <td class="jugador-nombre">${j.nombre}</td>
                             <td style="font-size:0.78rem;color:var(--gris3)">${j.dni||'—'}</td>
-                            <td><span style="font-size:0.75rem;padding:2px 6px;border-radius:8px;background:var(--gris1);color:var(--gris3)">${j.tipoSocio||'Activo'}</span></td>
+                            <td><span style="font-size:0.75rem;padding:2px 6px;border-radius:8px;background:var(--gris1);color:var(--gris3)">${formatTipoSocio(j.tipoSocio)}</span></td>
                             <td style="text-align:center">${j.mas35?'<span class="badge-mas35">'+getLabelMasById(j.equipoId)+'</span>':''}</td>
                             <td style="text-align:center">${j.ic?'<span class="badge-ic">IC</span>':''}</td>
                             <td style="font-size:0.78rem;color:${habColor};font-weight:600">${habLabel}</td>
@@ -2808,7 +2815,7 @@ function renderTarjetaSolicitud(s, esPendiente) {
             🏟️ ${s.nombreEquipo} · DNI: ${s.dni} · Nac: ${s.fechaNac}
           </div>
           <div style="font-size:0.78rem;color:var(--gris3);margin-top:2px">
-            👤 ${s.tipoSocio} · Título: ${s.tipoTitulo||'—'}
+            👤 ${formatTipoSocio(s.tipoSocio)} · Título: ${s.tipoTitulo||'—'}
             ${s.mas35 ? ' · <span style="background:#dbeafe;color:#1d4ed8;padding:1px 6px;border-radius:8px;font-size:0.72rem;font-weight:700">' + getLabelMasById(s.equipoId) + '</span>' : ''}
             ${s.ic    ? ' · <span style="background:#fef9c3;color:#92400e;padding:1px 6px;border-radius:8px;font-size:0.72rem;font-weight:700">IC</span>' : ''}
           </div>
