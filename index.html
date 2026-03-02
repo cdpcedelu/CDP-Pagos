@@ -951,6 +951,17 @@ const EQUIPOS_FALLBACK = [
   {id:'Salud_F_(S)',      nombre:'Salud F (S)',        cat:'Senior'},
 ];
 
+// Helper: badge +50 (Senior) o +35 (Libres) según categoría
+function getLabelMas(cat) {
+  return (cat || '').toLowerCase().includes('senior') ? '+50' : '+35';
+}
+function getLabelMasById(equipoId) {
+  const eq = (APP.equipos || EQUIPOS_FALLBACK).find(e =>
+    e.id.replace(/[\s_]+/g,'').toLowerCase() === String(equipoId||'').replace(/[\s_]+/g,'').toLowerCase()
+  );
+  return getLabelMas(eq ? eq.cat : '');
+}
+
 // ══════════════════════════════════════════════════════════════════
 // API
 // ══════════════════════════════════════════════════════════════════
@@ -1265,15 +1276,22 @@ async function renderMisComprobantes(cnt) {
   const pendientes  = compActivos.filter(c => c?.estado === 'Pendiente').length;
   const rechazados  = compActivos.filter(c => c?.estado === 'Rechazado').length;
 
+  // Determinar badge según categoría: Senior → +50, Libres → +35
+  const labelMas = getLabelMas(eq.cat);
+
   // Cargar cuotas para mostrar recordatorio
   let cuotaInfo = '';
   try {
     const paramData = await api('getParametros');
     if (paramData.ok && (paramData.cuotaSocial || paramData.cuotaDeportiva)) {
+      const cSocial = Number(paramData.cuotaSocial || 0);
+      const cDeportiva = Number(paramData.cuotaDeportiva || 0);
+      const valorIC = cSocial + cDeportiva + Math.round(cDeportiva / 2);
       cuotaInfo = `<div style="background:linear-gradient(135deg,#1a3a5c,#0d4f32);border-radius:10px;padding:10px 16px;margin-top:10px;display:flex;gap:20px;align-items:center;flex-wrap:wrap">
         <span style="color:rgba(255,255,255,0.7);font-size:0.78rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em">💡 Valores vigentes:</span>
-        ${paramData.cuotaSocial    ? `<span style="color:#86efac;font-size:0.9rem;font-weight:700">Cuota Social: $${Number(paramData.cuotaSocial).toLocaleString('es-AR')}</span>` : ''}
-        ${paramData.cuotaDeportiva ? `<span style="color:#fde047;font-size:0.9rem;font-weight:700">Cuota Deportiva: $${Number(paramData.cuotaDeportiva).toLocaleString('es-AR')}</span>` : ''}
+        ${cSocial    ? `<span style="color:#86efac;font-size:0.9rem;font-weight:700">Cuota Social: $${cSocial.toLocaleString('es-AR')}</span>` : ''}
+        ${cDeportiva ? `<span style="color:#fde047;font-size:0.9rem;font-weight:700">Cuota Deportiva: $${cDeportiva.toLocaleString('es-AR')}</span>` : ''}
+        ${(cSocial && cDeportiva) ? `<span style="color:#93c5fd;font-size:0.9rem;font-weight:700">Valor Intercategoría: $${valorIC.toLocaleString('es-AR')}</span>` : ''}
       </div>`;
     }
   } catch(e) {}
@@ -1349,7 +1367,7 @@ function renderFilaDelegado(i, jugador, comp, mes) {
     : '—';
 
   const badges = [
-    jugador.mas35 ? '<span class="badge-mas35">+35</span>' : '',
+    jugador.mas35 ? '<span class="badge-mas35">' + labelMas + '</span>' : '',
     jugador.ic    ? '<span class="badge-ic">IC</span>' : ''
   ].join('');
 
@@ -1556,7 +1574,7 @@ async function cargarEquipoAdmin(equipoId) {
       <div id="tabla-equipo-admin"></div>`;
 
     // Guardar datos para la tabla
-    window._adminEquipoData = { jugadores, comps };
+    window._adminEquipoData = { jugadores, comps, equipoId };
     actualizarTablaEquipoAdmin();
   } catch(e) {
     div.innerHTML = `<div class="empty">Error: ${e.message}</div>`;
@@ -1565,7 +1583,8 @@ async function cargarEquipoAdmin(equipoId) {
 
 function actualizarTablaEquipoAdmin() {
   const mes = document.getElementById('mes-equipo-admin')?.value || APP.filtroMes;
-  const { jugadores, comps } = window._adminEquipoData || { jugadores:[], comps:[] };
+  const { jugadores, comps, equipoId: adminEqId } = window._adminEquipoData || { jugadores:[], comps:[] };
+  const adminLabelMas = getLabelMasById(adminEqId);
   const div = document.getElementById('tabla-equipo-admin');
   if (!div) return;
 
@@ -1591,7 +1610,7 @@ function actualizarTablaEquipoAdmin() {
               <tr>
                 <td style="color:var(--gris2);font-family:'JetBrains Mono',monospace;font-size:0.75rem">${i+1}</td>
                 <td class="jugador-nombre">${j.nombre}
-                  ${j.mas35?'<span class="badge-mas35" style="margin-left:4px">+35</span>':''}
+                  ${j.mas35?'<span class="badge-mas35" style="margin-left:4px">'+adminLabelMas+'</span>':''}
                   ${j.ic?'<span class="badge-ic" style="margin-left:4px">IC</span>':''}
                 </td>
                 <td>${estadoHtml}</td>
@@ -1856,6 +1875,7 @@ async function renderHabilitaciones() {
     const data = await api('getHabilitaciones', { equipoId: APP.equipo.id });
     if (!data.ok) throw new Error(data.msg);
     const { jugadores, mesActual, mesAnterior } = data;
+    const habLabelMas = getLabelMas(APP.equipo.cat);
 
     const habilitados = jugadores.filter(j => j.estado === 'Habilitado').length;
     const iAdmin      = jugadores.filter(j => j.estado === 'I. Administrativa').length;
@@ -1899,7 +1919,7 @@ async function renderHabilitaciones() {
               ${jugadores.map((j,i) => {
                 const est = estadoColor[j.estado] || { bg:'#f3f4f6', color:'#374151', icono:'❓' };
                 const badges = [
-                  j.mas35 ? '<span class="badge-mas35">+35</span>' : '',
+                  j.mas35 ? '<span class="badge-mas35">' + habLabelMas + '</span>' : '',
                   j.ic    ? '<span class="badge-ic">IC</span>'    : ''
                 ].join('');
                 return `
@@ -1985,7 +2005,7 @@ async function renderGestionJugadores(equipoFiltro = '') {
                             <td class="jugador-nombre">${j.nombre}</td>
                             <td style="font-size:0.78rem;color:var(--gris3)">${j.dni||'—'}</td>
                             <td><span style="font-size:0.75rem;padding:2px 6px;border-radius:8px;background:var(--gris1);color:var(--gris3)">${j.tipoSocio||'Activo'}</span></td>
-                            <td style="text-align:center">${j.mas35?'<span class="badge-mas35">+35</span>':''}</td>
+                            <td style="text-align:center">${j.mas35?'<span class="badge-mas35">'+getLabelMasById(j.equipoId)+'</span>':''}</td>
                             <td style="text-align:center">${j.ic?'<span class="badge-ic">IC</span>':''}</td>
                             <td style="font-size:0.78rem;color:${habColor};font-weight:600">${habLabel}</td>
                             <td>
@@ -2757,7 +2777,7 @@ function renderTarjetaSolicitud(s, esPendiente) {
           </div>
           <div style="font-size:0.78rem;color:var(--gris3);margin-top:2px">
             👤 ${s.tipoSocio} · Título: ${s.tipoTitulo||'—'}
-            ${s.mas35 ? ' · <span style="background:#dbeafe;color:#1d4ed8;padding:1px 6px;border-radius:8px;font-size:0.72rem;font-weight:700">+35</span>' : ''}
+            ${s.mas35 ? ' · <span style="background:#dbeafe;color:#1d4ed8;padding:1px 6px;border-radius:8px;font-size:0.72rem;font-weight:700">' + getLabelMasById(s.equipoId) + '</span>' : ''}
             ${s.ic    ? ' · <span style="background:#fef9c3;color:#92400e;padding:1px 6px;border-radius:8px;font-size:0.72rem;font-weight:700">IC</span>' : ''}
           </div>
           <div style="font-size:0.75rem;color:var(--gris2);margin-top:4px">Solicitado: ${s.fechaSolicitud}</div>
