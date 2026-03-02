@@ -1281,7 +1281,7 @@ function apiConTimeout(accion, datos, ms) {
   ]);
 }
 
-async function renderMisComprobantes(cnt) {
+function renderMisComprobantes(cnt) {
   const eq = APP.equipo;
   const jug = APP.jugadores;
   const comp = APP.comprobantes.filter(c => c.estado !== 'Reemplazado'); // Ignorar reemplazados
@@ -1307,11 +1307,11 @@ async function renderMisComprobantes(cnt) {
   // Determinar badge según categoría: Senior → +50, Libres → +35
   const labelMas = getLabelMas(eq.cat);
 
-  // Cargar cuotas para mostrar recordatorio (usar cache si disponible)
+  // Cargar cuotas para mostrar recordatorio (ya precargado en renderDelegado)
   let cuotaInfo = '';
   try {
-    const paramData = APP._parametrosCache || await api('getParametros');
-    if (paramData.ok && (paramData.cuotaSocial || paramData.cuotaDeportiva)) {
+    const paramData = APP._parametrosCache;
+    if (paramData && paramData.ok && (paramData.cuotaSocial || paramData.cuotaDeportiva)) {
       const cSocial = Number(paramData.cuotaSocial || 0);
       const cDeportiva = Number(paramData.cuotaDeportiva || 0);
       const valorIC = cSocial + cDeportiva + Math.round(cDeportiva / 2);
