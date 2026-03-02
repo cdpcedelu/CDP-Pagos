@@ -1268,12 +1268,12 @@ function cacheClear(equipoId) {
   } catch(e) {}
 }
 
-// ── RENDER DELEGADO (con cache) ─────────────────────────────────
+// ── RENDER DELEGADO (con cache + Promise.all) ───────────────────
 async function renderDelegado(vista = 'mis-comprobantes', forceRefresh = false) {
   const cnt = document.getElementById('main-content');
   const equipoId = APP.equipo.id;
 
-  // 1) Intentar mostrar desde cache inmediatamente (si no es refresh forzado)
+  // 1) Si hay cache válido y no es refresh forzado → mostrar al toque
   const cached = !forceRefresh ? cacheGet(equipoId) : null;
   if (cached) {
     APP.jugadores = cached.jugadores || [];
@@ -1281,44 +1281,39 @@ async function renderDelegado(vista = 'mis-comprobantes', forceRefresh = false) 
     APP._parametrosCache = cached.parametros || null;
     if (vista === 'historial') renderHistorial(cnt);
     else renderMisComprobantes(cnt);
-    // Mostrar indicador sutil de actualización
-    const refreshBanner = document.createElement('div');
-    refreshBanner.id = 'refresh-banner';
-    refreshBanner.style.cssText = 'text-align:center;padding:6px;font-size:0.75rem;color:var(--gris3);background:var(--gris1);border-radius:8px;margin:8px 16px;opacity:0.8';
-    refreshBanner.innerHTML = '🔄 Actualizando datos...';
-    cnt.prepend(refreshBanner);
+    // Banner sutil mientras actualiza
+    const banner = document.createElement('div');
+    banner.id = 'refresh-banner';
+    banner.style.cssText = 'text-align:center;padding:6px;font-size:0.75rem;color:var(--gris3);background:var(--gris1);border-radius:8px;margin:8px 16px;opacity:0.8';
+    banner.textContent = '🔄 Actualizando datos...';
+    cnt.prepend(banner);
   } else {
-    // Sin cache: skeleton loading
-    cnt.innerHTML = `
-      <div style="padding:20px">
-        <div style="background:#e5e7eb;border-radius:12px;height:100px;margin-bottom:16px;animation:pulse 1.5s ease-in-out infinite"></div>
-        <div style="background:#e5e7eb;border-radius:12px;height:200px;animation:pulse 1.5s ease-in-out infinite"></div>
-      </div>`;
+    cnt.innerHTML = '<div class="loading"><div class="spinner"></div> Cargando...</div>';
   }
 
-  // 2) Fetch fresh data en background
+  // 2) Fetch en paralelo — 3 llamadas simultáneas en vez de secuenciales
   try {
-    const data = await api('getDelegadoInit', { equipoId });
-    if (!data.ok) throw new Error(data.msg);
-    APP.jugadores = data.jugadores || [];
-    APP.comprobantes = data.comprobantes || [];
-    APP._parametrosCache = data.parametros || null;
+    const [dj, dc, dp] = await Promise.all([
+      api('getJugadores', { equipoId }),
+      api('getComprobantes', { equipoId }),
+      api('getParametros').catch(() => null)
+    ]);
+    if (!dj.ok) throw new Error(dj.msg || 'Error al cargar jugadores');
+    APP.jugadores = dj.jugadores || [];
+    APP.comprobantes = (dc && dc.ok) ? dc.comprobantes : [];
+    APP._parametrosCache = (dp && dp.ok) ? dp : null;
 
-    // Guardar en cache para próxima vez
+    // Guardar en cache
     cacheSet(equipoId, { jugadores: APP.jugadores, comprobantes: APP.comprobantes, parametros: APP._parametrosCache });
 
-    // Re-render con datos frescos
+    // Render con datos frescos
     if (vista === 'historial') renderHistorial(cnt);
     else renderMisComprobantes(cnt);
   } catch(e) {
-    // Si teníamos cache, dejar lo que ya se muestra + aviso
     if (cached) {
-      const banner = document.getElementById('refresh-banner');
-      if (banner) {
-        banner.style.background = '#fff1f2';
-        banner.style.color = 'var(--rojo)';
-        banner.innerHTML = '⚠️ No se pudo actualizar. Mostrando última versión guardada.';
-      }
+      // Tenemos cache → dejar vista actual + aviso
+      const b = document.getElementById('refresh-banner');
+      if (b) { b.style.background='#fff1f2'; b.style.color='var(--rojo)'; b.textContent='⚠️ No se pudo actualizar. Mostrando datos guardados.'; }
     } else {
       cnt.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div>Error al cargar: ${e.message}</div>`;
     }
