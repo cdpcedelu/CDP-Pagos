@@ -35,9 +35,20 @@
   }
 
   /* ── LOGIN ────────────────────────────────── */
-  #login-screen {
+  #splash-screen {
     min-height: 100vh;
     display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #0f2744 0%, #1a3a5c 50%, #0d4f32 100%);
+    gap: 20px;
+  }
+  #splash-screen .spinner { border-top-color: #86efac; width: 40px; height: 40px; }
+  #splash-screen p { color: rgba(255,255,255,0.75); font-size: 0.95rem; font-weight: 500; }
+  #login-screen {
+    min-height: 100vh;
+    display: none;
     align-items: center;
     justify-content: center;
     background: linear-gradient(135deg, #0f2744 0%, #1a3a5c 50%, #0d4f32 100%);
@@ -527,6 +538,13 @@
 </style>
 </head>
 <body>
+
+<!-- ═══════ SPLASH (mientras restaura sesión) ═══════════════════════ -->
+<div id="splash-screen">
+  <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='%23ffffff' stroke='%231a3a5c' stroke-width='3'/%3E%3Ctext x='50' y='58' text-anchor='middle' font-size='28' font-weight='bold' fill='%231a3a5c'%3ECDP%3C/text%3E%3C/svg%3E" alt="CDP" style="width:80px;height:80px;border-radius:18px;box-shadow:0 8px 24px rgba(0,0,0,0.3)">
+  <div class="spinner"></div>
+  <p>Cargando...</p>
+</div>
 
 <!-- ═══════ LOGIN ═══════════════════════════════════════════════════ -->
 <div id="login-screen">
@@ -3729,12 +3747,19 @@ cargarEquiposSelect();
 
 // Restaurar sesión si existe (evita perder login al refrescar)
 (async function restaurarSesion() {
+  const splash = document.getElementById('splash-screen');
+  const login  = document.getElementById('login-screen');
   const sesion = cargarSesionLocal();
-  if (!sesion || !sesion.token) return;
 
-  // Verificar que el token siga vivo en el servidor
+  if (!sesion || !sesion.token) {
+    // Sin sesión guardada → mostrar login directo
+    splash.style.display = 'none';
+    login.style.display = 'flex';
+    return;
+  }
+
+  // Hay sesión → mantener splash mientras valida
   try {
-    // Hacemos una llamada liviana para validar el token
     APP.token = sesion.token;
     APP.rol = sesion.rol;
     APP.equipo = sesion.equipo;
@@ -3743,6 +3768,7 @@ cargarEquiposSelect();
       const check = await api('getParametros');
       if (check.ok) {
         console.log('[CDP] Sesión admin restaurada desde sessionStorage');
+        splash.style.display = 'none';
         iniciarApp();
         return;
       }
@@ -3750,6 +3776,7 @@ cargarEquiposSelect();
       const check = await api('getJugadores', { equipoId: sesion.equipo.id });
       if (check.ok) {
         console.log('[CDP] Sesión delegado restaurada desde sessionStorage');
+        splash.style.display = 'none';
         iniciarApp();
         return;
       }
@@ -3762,6 +3789,8 @@ cargarEquiposSelect();
   APP.token = null;
   APP.rol = null;
   APP.equipo = null;
+  splash.style.display = 'none';
+  login.style.display = 'flex';
 })();
 
 // Drag & drop en upload zone
