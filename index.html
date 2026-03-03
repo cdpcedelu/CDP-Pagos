@@ -1392,6 +1392,7 @@ function renderMisComprobantes(cnt) {
           ${CONFIG.MESES.map(m => `<option ${m===mes?'selected':''}>${m}</option>`).join('')}
         </select>
       </div>
+      ${CONFIG.MESES.indexOf(mes) >= 1 ? `<div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;padding:6px 12px;margin-bottom:8px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;font-size:0.72rem;color:#64748b"><span style="font-weight:600;text-transform:uppercase;letter-spacing:0.04em">Meses anteriores:</span><span><span style="color:#22c55e">✓</span> Aprobado</span><span><span style="color:#eab308">⏳</span> Pendiente</span><span><span style="color:#ef4444">✗</span> Rechazado</span><span><span style="color:#9ca3af">○</span> Sin cargar</span></div>` : ""}
       <div class="tabla-wrapper">
         <table>
           <thead>
