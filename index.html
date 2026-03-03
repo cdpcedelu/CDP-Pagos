@@ -1373,7 +1373,7 @@ function renderMisComprobantes(cnt) {
   cnt.innerHTML = `
     <div class="equipo-header">
       <div>
-        <div class="equipo-nombre">${eq.nombre}</div>
+        <div class="equipo-nombre">${eq.nombre} <span style="font-weight:400;font-size:0.85em;color:rgba(255,255,255,0.65);margin-left:8px">— ${mes}</span></div>
         <div class="equipo-cat">${eq.cat || ''}</div>
         <div class="equipo-stats">
           <div class="stat"><div class="stat-num">${jug.length}</div><div class="stat-label">Jugadores</div></div>
@@ -1406,7 +1406,7 @@ function renderMisComprobantes(cnt) {
           <tbody>
             ${jug.map((j, i) => {
               const c = getCompActivo(j.id, mes);
-              return renderFilaDelegado(i+1, j, c, mes, labelMas);
+              return renderFilaDelegado(i+1, j, c, mes, labelMas, comp);
             }).join('')}
           </tbody>
         </table>
@@ -1415,7 +1415,7 @@ function renderMisComprobantes(cnt) {
   `;
 }
 
-function renderFilaDelegado(i, jugador, comp, mes, labelMas) {
+function renderFilaDelegado(i, jugador, comp, mes, labelMas, allComp) {
   let estadoHtml = `<span class="estado-badge estado-sin-cargar">Sin cargar</span>`;
   let accionHtml = `<button class="btn-sm btn-cargar" onclick="abrirModalCargar(${jugador.id},'${jugador.nombre.replace(/'/g,"\\'")}','${mes}',null,null)">📤 Cargar</button>`;
 
@@ -1445,12 +1445,38 @@ function renderFilaDelegado(i, jugador, comp, mes, labelMas) {
     jugador.ic    ? '<span class="badge-ic">IC</span>' : ''
   ].join('');
 
+  // Mini-resumen de los 2 meses anteriores al seleccionado
+  let miniResumen = '';
+  const idxMes = CONFIG.MESES.indexOf(mes);
+  if (idxMes >= 1 && allComp) {
+    const abrevs = {Enero:'ENE',Febrero:'FEB',Marzo:'MAR',Abril:'ABR',Mayo:'MAY',Junio:'JUN',
+                    Julio:'JUL',Agosto:'AGO',Septiembre:'SEP',Octubre:'OCT',Noviembre:'NOV',Diciembre:'DIC'};
+    const items = [];
+    for (let k = Math.max(0, idxMes-2); k < idxMes; k++) {
+      const m = CONFIG.MESES[k];
+      const comps = allComp.filter(c => String(c.jugadorId) == String(jugador.id) && c.mes === m && c.estado !== 'Reemplazado');
+      let icon, color;
+      if (!comps.length) {
+        icon = '○'; color = '#9ca3af';
+      } else {
+        comps.sort((a,b) => ({Aprobado:0,Pendiente:1,Rechazado:2}[a.estado]||9) - ({Aprobado:0,Pendiente:1,Rechazado:2}[b.estado]||9));
+        const best = comps[0].estado;
+        if (best === 'Aprobado')       { icon = '✓'; color = '#22c55e'; }
+        else if (best === 'Pendiente') { icon = '⏳'; color = '#eab308'; }
+        else                           { icon = '✗'; color = '#ef4444'; }
+      }
+      items.push(`<span style="font-size:0.67rem;font-family:'JetBrains Mono',monospace;white-space:nowrap" title="${m}: ${comps.length ? comps[0].estado : 'Sin cargar'}"><span style="color:#6b7280">${abrevs[m]}</span><span style="color:${color};margin-left:1px">${icon}</span></span>`);
+    }
+    miniResumen = `<div style="display:flex;gap:7px;margin-top:2px">${items.join('')}</div>`;
+  }
+
   return `
     <tr>
       <td style="color:var(--gris2); font-size:0.75rem; font-family:'JetBrains Mono',monospace">${String(i).padStart(2,'0')}</td>
       <td>
         <div class="jugador-nombre">${jugador.nombre}</div>
         ${badges ? `<div class="jugador-badges">${badges}</div>` : ''}
+        ${miniResumen}
       </td>
       <td>${estadoHtml}</td>
       <td>${obsHtml}</td>
@@ -1865,7 +1891,30 @@ async function confirmarCarga() {
     if (data.ok) {
       cerrarModal('modal-cargar');
       showToast('¡Comprobante cargado correctamente!', 'success');
-      renderDelegado();
+      // Actualizar comprobantes localmente sin recargar todo
+      if (data.comprobante) {
+        // Si reemplazó uno existente, marcarlo
+        if (APP.modalComprobanteId) {
+          const idx = APP.comprobantes.findIndex(c => c.id === APP.modalComprobanteId);
+          if (idx >= 0) APP.comprobantes[idx].estado = 'Reemplazado';
+        }
+        APP.comprobantes.push(data.comprobante);
+      } else {
+        // Fallback: agregar un comprobante sintético
+        APP.comprobantes.push({
+          id: 'temp_' + Date.now(),
+          equipoId: APP.equipo.id,
+          jugadorId: APP.modalJugadorId,
+          jugadorNombre: APP.modalJugadorNombre,
+          mes: document.getElementById('mc-mes').textContent,
+          estado: 'Pendiente',
+          fecha: new Date().toISOString(),
+          obsAdmin: '',
+          obsUsuario: document.getElementById('mc-obs').value
+        });
+      }
+      // Re-render solo la tabla sin volver a llamar al servidor
+      renderMisComprobantes(document.getElementById('main-content'));
     } else {
       throw new Error(data.msg || 'Error al cargar');
     }
