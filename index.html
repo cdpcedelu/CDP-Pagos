@@ -1458,7 +1458,8 @@ async function renderAdmin() {
     const data = await api('getResumen');
     if (!data.ok) throw new Error(data.msg);
 
-    const { total, aprobados, pendientes, rechazados, porEquipo } = data;
+    const { total, aprobados, pendientes, rechazados, porEquipo, sancionesData } = data;
+    const totalSancionados = (sancionesData||[]).length;
     cnt.innerHTML = `
       <div class="stats-grid">
         <div class="stat-card azul"><div class="stat-card-num">${total}</div><div class="stat-card-label">Total comprobantes</div></div>
@@ -1469,7 +1470,30 @@ async function renderAdmin() {
           <div class="stat-card-num">` + '${data.solicitudesPendientes}' + `</div>
           <div class="stat-card-label">Solicitudes alta pendientes ⚠️</div>
         </div>` : ''}
+        ${totalSancionados > 0 ? `<div class="stat-card rojo">
+          <div class="stat-card-num">${totalSancionados}</div>
+          <div class="stat-card-label">🚫 Sancionados activos</div>
+        </div>` : ''}
       </div>
+      ${totalSancionados > 0 ? `
+      <div class="card">
+        <div class="card-title">🚫 Sanciones disciplinarias activas (${totalSancionados})</div>
+        <div class="tabla-wrapper">
+          <table>
+            <thead><tr><th>#</th><th>Jugador</th><th>Equipo</th><th>Motivo</th><th>Fecha Hábil</th></tr></thead>
+            <tbody>
+              ${(sancionesData||[]).map((s,i)=>`
+                <tr>
+                  <td style="color:var(--gris2);font-size:0.75rem">${String(i+1).padStart(2,'0')}</td>
+                  <td class="jugador-nombre">${s.nombre}</td>
+                  <td style="font-size:0.82rem">${s.equipo}</td>
+                  <td style="font-size:0.82rem">${s.partidos || '—'}</td>
+                  <td style="font-size:0.82rem;font-weight:600;color:${s.fechaHab ? '#0369a1' : '#9f1239'}">${s.fechaHab || 'Sin fecha'}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>` : ''}
       <div class="card">
         <div class="card-title">⚽ Resumen por equipo — ${APP.filtroMes}</div>
         <div class="mes-selector" style="margin-bottom:14px">
