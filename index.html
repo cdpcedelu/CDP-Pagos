@@ -278,6 +278,8 @@
   .btn-aprobar:hover { background: #bbf7d0; }
   .btn-rechazar  { background: #fee2e2; color: var(--rojo); border: 1px solid #fca5a5; }
   .btn-rechazar:hover { background: #fecaca; }
+  .btn-revocar   { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+  .btn-revocar:hover { background: #e2e8f0; color: #1e293b; }
   .btn-actions   { display: flex; gap: 6px; }
 
   /* Obs tooltip */
@@ -1717,6 +1719,7 @@ function renderListaAdmin(cnt) {
                     <div class="btn-actions">
                       <button class="btn-sm btn-ver" onclick="abrirModalVer('${c.id}')">👁 Ver</button>
                       ${c.estado !== 'Aprobado' ? `<button class="btn-sm btn-aprobar" onclick="aprobarComprobante('${c.id}')">✅</button>` : ''}
+                      ${c.estado === 'Aprobado'  ? `<button class="btn-sm btn-revocar" onclick="revocarComprobante('${c.id}','${c.jugadorNombre.replace(/'/g,"\\'")}','${c.mes}')" title="Quitar aprobación sin notificar al delegado">↩ Revocar</button>` : ''}
                       ${c.estado !== 'Rechazado' ? `<button class="btn-sm btn-rechazar" onclick="abrirModalRechazar('${c.id}','${c.jugadorNombre.replace(/'/g,"\\'")}','${c.mes}','${c.equipoId}')">❌</button>` : ''}
                     </div>
                   </td>
@@ -1815,6 +1818,7 @@ function actualizarTablaEquipoAdmin() {
                 <div class="btn-actions">
                   <button class="btn-sm btn-ver" onclick="abrirModalVer('${c.id}')">👁 Ver</button>
                   ${c.estado !== 'Aprobado' ? `<button class="btn-sm btn-aprobar" onclick="aprobarComprobante('${c.id}')">✅</button>` : ''}
+                  ${c.estado === 'Aprobado'  ? `<button class="btn-sm btn-revocar" onclick="revocarComprobante('${c.id}','${j.nombre.replace(/'/g,"\\'")}','${mes}')" title="Quitar aprobación sin notificar al delegado">↩ Revocar</button>` : ''}
                   ${c.estado !== 'Rechazado' ? `<button class="btn-sm btn-rechazar" onclick="abrirModalRechazar('${c.id}','${j.nombre.replace(/'/g,"\\'")}','${mes}','')">❌</button>` : ''}
                 </div>`;
             }
@@ -2079,6 +2083,24 @@ async function aprobarComprobante(comprobanteId) {
     if (data.ok) {
       showToast('Comprobante aprobado ✅', 'success');
       renderTodosComprobantes();
+    } else throw new Error(data.msg);
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+
+async function revocarComprobante(comprobanteId, jugadorNombre, mes) {
+  if (!confirm(`¿Revocar la aprobación de ${jugadorNombre} (${mes})?\n\nEl comprobante quedará "Pendiente". No se enviará ninguna notificación al delegado.`)) return;
+  try {
+    const data = await api('revocarComprobante', { id: comprobanteId });
+    if (data.ok) {
+      showToast('Aprobación revocada — sin notificación enviada', 'success');
+      // Refrescar la vista correcta según dónde estamos
+      if (window._adminEquipoData) {
+        await cargarEquipoAdmin(window._adminEquipoData.equipoId);
+      } else {
+        renderTodosComprobantes();
+      }
     } else throw new Error(data.msg);
   } catch(e) {
     showToast('Error: ' + e.message, 'error');
