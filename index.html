@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- PAGOS CDP — Frontend v5.7 — 2026-03-05 18:50 ARG -->
+<!-- PAGOS CDP — Frontend v5.9 — 2026-03-05 20:45 ARG -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -1039,6 +1039,7 @@ const EQUIPOS_FALLBACK = [
   {id:'Ingenieros_S',     nombre:'Ingenieros S',       cat:'Libres'},
   {id:'Maestros',         nombre:'Maestros',           cat:'Libres'},
   {id:'Profesores',       nombre:'Profesores',         cat:'Libres'},
+  {id:'Psicologos',       nombre:'Psicologos',         cat:'Libres'},
   {id:'Salud_B',          nombre:'Salud B',            cat:'Libres'},
   {id:'Salud_F',          nombre:'Salud F',            cat:'Libres'},
   {id:'Salud_T',          nombre:'Salud T',            cat:'Libres'},
@@ -4253,6 +4254,7 @@ async function ejecutarAprobacionMasivaEstudios(equipoId, jugadorIds) {
     const data = await api('aprobarMasivo', {
       equipoId,
       jugadorIds: JSON.stringify(jugadorIds),
+      mes: CONFIG.MES_ACTUAL,
     });
     if (data.ok) {
       showToast(data.msg || 'Estudios aprobados ✅', 'success');
