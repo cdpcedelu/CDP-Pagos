@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- PAGOS CDP — Frontend v5.10 — 2026-03-05 21:00 ARG -->
+<!-- PAGOS CDP — Frontend v5.12 — 2026-03-05 22:00 ARG -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -4189,6 +4189,15 @@ function renderTablaEstudiosAdmin(div) {
               estadoHtml = `<span class="estado-badge" style="background:#fef2f2;color:#b91c1c">❌ ${em.estado}</span>`;
             }
 
+            let accionesHtml = '';
+            if (em) {
+              const jid = j.id;
+              const jnm = j.nombre.replace(/'/g, '&#39;');
+              accionesHtml += `<button class="btn-sm btn-ver" onclick="verEstudioAdmin('${jid}','${jnm}')">👁 Ver</button>`;
+              accionesHtml += `<button class="btn-sm" title="Editar fecha presentación" onclick="abrirEditarFechaEstudio('${jid}','${jnm}')">📅</button>`;
+              if (em.estado !== 'Aprobado') accionesHtml += `<button class="btn-sm btn-aprobar" onclick="aprobarEstudioIndividual('${jid}','${equipoId}','${jnm}')">✅</button>`;
+              if (em.estado !== 'Rechazado') accionesHtml += `<button class="btn-sm btn-rechazar" onclick="abrirModalRechazarEstudio('${jid}','${jnm}','${equipoId}')">❌</button>`;
+            }
             return `<tr>
               <td style="text-align:center">
                 ${sinAprobadoJug ? `<input type="checkbox" class="chk-estudio-jug" value="${j.id}" onchange="actualizarConteoEstudios()">` : ''}
@@ -4200,13 +4209,7 @@ function renderTablaEstudiosAdmin(div) {
               <td style="font-size:0.78rem">${em?.fechaEstudio || '—'}</td>
               <td>${estadoHtml}</td>
               <td style="font-size:0.78rem;color:${vigente===false?'var(--rojo)':'var(--gris3)'};font-weight:${vigente===false?700:400}">${em ? venc : '—'}</td>
-              <td>
-                <div class="btn-actions">
-                  ${em ? `<button class="btn-sm btn-ver" onclick="verEstudioAdmin('${j.id}','${j.nombre.replace(/'/g,"\\'")}')">👁 Ver</button>` : ''}
-                  ${em && em.estado !== 'Aprobado' ? `<button class="btn-sm btn-aprobar" onclick="aprobarEstudioIndividual('${j.id}','${equipoId}','${j.nombre.replace(/'/g,"\\'")}')">✅</button>` : ''}
-                  ${em && em.estado !== 'Rechazado' ? `<button class="btn-sm btn-rechazar" onclick="abrirModalRechazarEstudio('${j.id}','${j.nombre.replace(/'/g,"\\'")}','${equipoId}')">❌</button>` : ''}
-                </div>
-              </td>
+              <td><div class="btn-actions">${accionesHtml}</div></td>
             </tr>`;
           }).join('')}
         </tbody>
@@ -4272,6 +4275,41 @@ async function aprobarEstudioIndividual(jugadorId, equipoId, jugadorNombre) {
     } else throw new Error(data.msg);
   } catch(e) { showToast('Error: ' + e.message, 'error'); }
 }
+
+function abrirEditarFechaEstudio(jugadorId, jugadorNombre) {
+  // Modal simple inline con prompt de fecha
+  const equipoId = window._adminEstudiosData?.equipoId;
+  const wrapper  = document.createElement('div');
+  wrapper.id = 'modal-editar-fecha-overlay';
+  wrapper.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center';
+  wrapper.innerHTML = `
+    <div style="background:var(--fondo1);border-radius:14px;padding:28px 24px;max-width:360px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.25)">
+      <div style="font-weight:700;font-size:1rem;margin-bottom:6px">📅 Editar fecha de presentación</div>
+      <div style="font-size:0.85rem;color:var(--gris3);margin-bottom:16px">${jugadorNombre}</div>
+      <input type="date" id="input-fecha-estudio" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit;font-size:0.95rem;margin-bottom:16px">
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button onclick="document.getElementById('modal-editar-fecha-overlay').remove()"
+          style="padding:8px 18px;border-radius:8px;border:1px solid var(--gris2);background:var(--fondo2);cursor:pointer">Cancelar</button>
+        <button onclick="confirmarEditarFechaEstudio('${jugadorId}','${equipoId}')"
+          style="padding:8px 18px;border-radius:8px;border:none;background:var(--azul2);color:#fff;cursor:pointer;font-weight:600">Guardar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(wrapper);
+}
+
+async function confirmarEditarFechaEstudio(jugadorId, equipoId) {
+  const input = document.getElementById('input-fecha-estudio');
+  if (!input?.value) { showToast('Seleccioná una fecha', 'error'); return; }
+  try {
+    const data = await api('editarFechaEstudio', { jugadorId, fecha: input.value });
+    if (data.ok) {
+      showToast('Fecha actualizada ✅', 'success');
+      document.getElementById('modal-editar-fecha-overlay')?.remove();
+      if (equipoId) await cargarEstudiosEquipoAdmin(equipoId);
+    } else throw new Error(data.msg);
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
 
 function abrirModalRechazarEstudio(jugadorId, jugadorNombre, equipoId) {
   APP._rechEstudioJugadorId = jugadorId;
