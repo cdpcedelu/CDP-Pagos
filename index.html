@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- PAGOS CDP — Frontend v5.21 — 2026-03-06 01:30 ARG -->
+<!-- PAGOS CDP — Frontend v5.22 — 2026-03-06 10:30 ARG -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -1816,7 +1816,30 @@ function actualizarTablaEquipoAdmin() {
     return !c || c.estado === 'Rechazado' || c.estado === 'Reemplazado';
   });
 
+  // Calcular resumen de habilitaciones
+  const resHab = { hab:0, pagos:0, estudios:0, sancion:0, manual:0, sinInfo:0 };
+  jugadores.forEach(j => {
+    const h = (habMapEquipo||{})[String(j.id)];
+    if (!h) { resHab.sinInfo++; return; }
+    if (h.estado === 'Habilitado')         resHab.hab++;
+    else if (h.estado === 'I. Administrativa' && (h.detalle||'').includes('pago')) resHab.pagos++;
+    else if (h.estado === 'I. Administrativa') resHab.manual++;
+    else if (h.estado === 'I. Medica')     resHab.estudios++;
+    else if (h.estado === 'I. Deportiva')  resHab.sancion++;
+    else resHab.sinInfo++;
+  });
+  const totalJug = jugadores.length;
+  const resumenHtml = `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;padding:12px 16px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;align-items:center">
+    <span style="font-size:0.78rem;font-weight:700;color:#475569;margin-right:4px">📋 Estado del equipo (${totalJug}):</span>
+    <span style="font-size:0.78rem;padding:3px 10px;border-radius:20px;background:#dcfce7;color:#15803d;font-weight:700">✅ Hab: ${resHab.hab}</span>
+    ${resHab.pagos   > 0 ? `<span style="font-size:0.78rem;padding:3px 10px;border-radius:20px;background:#fef2f2;color:#b91c1c;font-weight:700">💰 Falta pago: ${resHab.pagos}</span>` : ''}
+    ${resHab.estudios> 0 ? `<span style="font-size:0.78rem;padding:3px 10px;border-radius:20px;background:#fefce8;color:#a16207;font-weight:700">🏥 Estudios: ${resHab.estudios}</span>` : ''}
+    ${resHab.sancion > 0 ? `<span style="font-size:0.78rem;padding:3px 10px;border-radius:20px;background:#eff6ff;color:#1d4ed8;font-weight:700">🟡 Sancionados: ${resHab.sancion}</span>` : ''}
+    ${resHab.manual  > 0 ? `<span style="font-size:0.78rem;padding:3px 10px;border-radius:20px;background:#f5f3ff;color:#6d28d9;font-weight:700">🔒 I. Manual: ${resHab.manual}</span>` : ''}
+  </div>`;
+
   div.innerHTML = `
+    ${resumenHtml}
     ${sinCargar.length > 0 ? `
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;padding:12px 16px;background:linear-gradient(135deg,#f0f9ff,#eff6ff);border:1.5px solid #bfdbfe;border-radius:10px">
       <span style="font-size:0.82rem;color:#1e40af;font-weight:600">⚡ Aprobación rápida:</span>
