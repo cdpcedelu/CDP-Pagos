@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- PAGOS CDP — Frontend v5.22 — 2026-03-06 10:30 ARG -->
+<!-- PAGOS CDP — Frontend v5.23 — 2026-03-06 10:40 ARG -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -1822,7 +1822,7 @@ function actualizarTablaEquipoAdmin() {
     const h = (habMapEquipo||{})[String(j.id)];
     if (!h) { resHab.sinInfo++; return; }
     if (h.estado === 'Habilitado')         resHab.hab++;
-    else if (h.estado === 'I. Administrativa' && (h.detalle||'').includes('pago')) resHab.pagos++;
+    else if (h.estado === 'I. Administrativa' && (h.detalle||'').toLowerCase().includes('pago')) resHab.pagos++;
     else if (h.estado === 'I. Administrativa') resHab.manual++;
     else if (h.estado === 'I. Medica')     resHab.estudios++;
     else if (h.estado === 'I. Deportiva')  resHab.sancion++;
