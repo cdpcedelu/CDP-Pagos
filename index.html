@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- PAGOS CDP — Frontend v5.15 — 2026-03-05 23:00 ARG -->
+<!-- PAGOS CDP — Frontend v5.16 — 2026-03-05 23:20 ARG -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -1761,12 +1761,18 @@ async function cargarEquipoAdmin(equipoId) {
   const div = document.getElementById('equipo-admin-content');
   div.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   try {
-    const [dj, dc] = await Promise.all([
+    const [dj, dc, dh] = await Promise.all([
       api('getJugadores', {equipoId}),
-      api('getComprobantes', {equipoId})
+      api('getComprobantes', {equipoId}),
+      api('getHabilitaciones', {equipoId}),
     ]);
     const jugadores = dj.ok ? dj.jugadores : [];
     const comps = dc.ok ? dc.comprobantes : [];
+    // Mapa jugadorId → habilitacion
+    const habMap = {};
+    if (dh.ok && dh.jugadores) {
+      dh.jugadores.forEach(h => { habMap[String(h.id)] = h; });
+    }
 
     div.innerHTML = `
       <div class="mes-selector" style="margin:14px 0">
@@ -1778,7 +1784,7 @@ async function cargarEquipoAdmin(equipoId) {
       <div id="tabla-equipo-admin"></div>`;
 
     // Guardar datos para la tabla
-    window._adminEquipoData = { jugadores, comps, equipoId };
+    window._adminEquipoData = { jugadores, comps, habMap, equipoId };
     actualizarTablaEquipoAdmin();
   } catch(e) {
     div.innerHTML = `<div class="empty">Error: ${e.message}</div>`;
@@ -1787,7 +1793,7 @@ async function cargarEquipoAdmin(equipoId) {
 
 function actualizarTablaEquipoAdmin() {
   const mes = document.getElementById('mes-equipo-admin')?.value || APP.filtroMes;
-  const { jugadores, comps, equipoId: adminEqId } = window._adminEquipoData || { jugadores:[], comps:[] };
+  const { jugadores, comps, habMap: habMapEquipo, equipoId: adminEqId } = window._adminEquipoData || { jugadores:[], comps:[], habMap:{} };
   const adminLabelMas = getLabelMasById(adminEqId);
   const div = document.getElementById('tabla-equipo-admin');
   if (!div) return;
@@ -1831,6 +1837,17 @@ function actualizarTablaEquipoAdmin() {
                   ${c.estado !== 'Rechazado' ? `<button class="btn-sm btn-rechazar" onclick="abrirModalRechazar('${c.id}','${j.nombre.replace(/'/g,"\\'")}','${mes}','')">❌</button>` : ''}
                 </div>`;
             }
+            // Badge de habilitación
+            const hab = (habMapEquipo||{})[String(j.id)];
+            let habBadge = '';
+            if (hab) {
+              if (hab.habilitado) {
+                habBadge = '<span style="display:inline-flex;align-items:center;gap:3px;font-size:0.68rem;font-weight:700;padding:2px 7px;border-radius:12px;background:#dcfce7;color:#15803d;margin-left:6px">✅ HAB</span>';
+              } else {
+                const motivo = (hab.detalle||'').replace(/'/g,"&#39;").replace(/"/g,'&quot;');
+                habBadge = `<span style="display:inline-flex;align-items:center;gap:3px;font-size:0.68rem;font-weight:700;padding:2px 7px;border-radius:12px;background:#fef2f2;color:#b91c1c;margin-left:6px;cursor:default" title="${motivo}">🚫 NO HAB</span>`;
+              }
+            }
             return `
               <tr>
                 ${sinCargar.length > 0 ? `<td style="text-align:center">${!tieneAprobadoOPendiente ? `<input type="checkbox" class="chk-jugador" value="${j.id}" onchange="actualizarConteoSeleccion()">` : ''}</td>` : ''}
@@ -1838,6 +1855,7 @@ function actualizarTablaEquipoAdmin() {
                 <td class="jugador-nombre">${j.nombre}
                   ${j.mas35?'<span class="badge-mas35" style="margin-left:4px">'+adminLabelMas+'</span>':''}
                   ${j.ic?'<span class="badge-ic" style="margin-left:4px">IC</span>':''}
+                  ${habBadge}
                 </td>
                 <td>${estadoHtml}</td>
                 <td>${c?.obsAdmin?`<span class="obs-tag" title="${c.obsAdmin}">${c.obsAdmin}</span>`:'—'}</td>
