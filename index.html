@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- PAGOS CDP — Frontend v5.14 — 2026-03-05 22:30 ARG -->
+<!-- PAGOS CDP — Frontend v5.15 — 2026-03-05 23:00 ARG -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -1962,6 +1962,15 @@ async function abrirModalVer(comprobanteId) {
     const c = data.comprobante;
 
     const isAdmin = APP.rol === 'admin';
+
+    // Cargar nota admin en paralelo (solo para admin)
+    let notaAdmin = null;
+    if (isAdmin) {
+      try {
+        const nd = await api('getNotaAdmin', { jugadorId: c.jugadorId });
+        if (nd.ok) notaAdmin = nd.nota;
+      } catch(e) {}
+    }
     // Zoom: arranca en 100% (imagen ya ocupa todo el ancho del modal), puede subir hasta 300%
     const ZOOM_STEPS  = [0.5, 0.75, 1, 1.5, 2.0, 2.5, 3.0];
     const ZOOM_LABELS = ['50%','75%','100%','150%','200%','250%','300%'];
@@ -1986,6 +1995,24 @@ async function abrirModalVer(comprobanteId) {
         ${c.obsAdmin?`<div class="modal-info-row"><span>Obs. Admin</span><span style="color:var(--rojo)">${c.obsAdmin}</span></div>`:''}
         ${c.obsUsuario?`<div class="modal-info-row"><span>Obs. Delegado</span><span>${c.obsUsuario}</span></div>`:''}
       </div>
+      ${isAdmin ? `<div id="nota-admin-section" style="margin:10px 0;border-radius:10px;border:2px solid #fbbf24;background:#fffbeb;padding:12px 14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <span style="font-weight:700;font-size:0.82rem;color:#92400e">🔒 Nota privada (solo Admin)</span>
+          <div style="display:flex;gap:6px">
+            ${notaAdmin ? `<button onclick="eliminarNotaAdmin('${c.jugadorId}')" style="font-size:0.72rem;padding:2px 8px;border-radius:5px;border:1px solid #fca5a5;background:#fef2f2;color:#b91c1c;cursor:pointer">🗑 Eliminar</button>` : ''}
+            <button onclick="toggleEditarNota('${c.jugadorId}','${c.equipoId}','${c.jugadorNombre.replace(/'/g,"&#39;")}')" style="font-size:0.72rem;padding:2px 8px;border-radius:5px;border:1px solid #fbbf24;background:#fef3c7;color:#92400e;cursor:pointer">✏️ ${notaAdmin ? 'Editar' : 'Agregar nota'}</button>
+          </div>
+        </div>
+        <div id="nota-admin-texto" style="font-size:0.88rem;color:#78350f;white-space:pre-wrap;min-height:18px">${notaAdmin ? notaAdmin.nota : '<span style="color:#a8a29e;font-style:italic">Sin notas</span>'}</div>
+        ${notaAdmin ? `<div style="font-size:0.72rem;color:#a8a29e;margin-top:4px">Última modificación: ${notaAdmin.fecha}</div>` : ''}
+        <div id="nota-admin-editor" style="display:none;margin-top:10px">
+          <textarea id="nota-admin-input" rows="3" placeholder="Ej: Pagó 1/3 inscripción. Debe cuotas 2 y 3..." style="width:100%;padding:8px;border:1.5px solid #fbbf24;border-radius:8px;font-family:inherit;font-size:0.88rem;resize:vertical;box-sizing:border-box;background:#fff"></textarea>
+          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">
+            <button onclick="document.getElementById('nota-admin-editor').style.display='none'" style="padding:5px 14px;border-radius:7px;border:1px solid #e2e8f0;background:#f8fafc;cursor:pointer;font-size:0.82rem">Cancelar</button>
+            <button onclick="guardarNotaAdmin('${c.jugadorId}','${c.equipoId}','${c.jugadorNombre.replace(/'/g,"&#39;")}')" style="padding:5px 14px;border-radius:7px;border:none;background:#d97706;color:#fff;cursor:pointer;font-size:0.82rem;font-weight:600">Guardar nota</button>
+          </div>
+        </div>
+      </div>` : ''}
       ${zoomBarHtml}
       ${c.archivoB64
         ? (c.esImagen
@@ -2042,6 +2069,56 @@ async function abrirModalVer(comprobanteId) {
   } catch(e) {
     body.innerHTML = `<div class="empty">Error al cargar: ${e.message}</div>`;
   }
+}
+
+// ── NOTAS ADMIN ────────────────────────────────────────────────────
+function toggleEditarNota(jugadorId, equipoId, jugadorNombre) {
+  const editor = document.getElementById('nota-admin-editor');
+  if (!editor) return;
+  if (editor.style.display === 'none') {
+    editor.style.display = 'block';
+    const input = document.getElementById('nota-admin-input');
+    const textoEl = document.getElementById('nota-admin-texto');
+    // Pre-cargar texto actual si existe
+    const textoActual = textoEl?.innerText?.trim();
+    if (textoActual && !textoActual.includes('Sin notas')) input.value = textoActual;
+    input.focus();
+  } else {
+    editor.style.display = 'none';
+  }
+}
+
+async function guardarNotaAdmin(jugadorId, equipoId, nombre) {
+  const nota = document.getElementById('nota-admin-input')?.value?.trim();
+  if (!nota) { showToast('Escribí algo antes de guardar', 'error'); return; }
+  try {
+    const data = await api('setNotaAdmin', { jugadorId, equipoId, nombre, nota });
+    if (data.ok) {
+      showToast('Nota guardada 📝', 'success');
+      document.getElementById('nota-admin-texto').innerHTML = nota.replace(/\n/g,'<br>');
+      document.getElementById('nota-admin-editor').style.display = 'none';
+      // Actualizar botón a "Editar"
+      const btn = document.querySelector('#nota-admin-section button[onclick*="toggleEditarNota"]');
+      if (btn) btn.textContent = '✏️ Editar';
+    } else throw new Error(data.msg);
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+async function eliminarNotaAdmin(jugadorId) {
+  if (!confirm('¿Eliminar la nota de este jugador?')) return;
+  try {
+    const data = await api('deleteNotaAdmin', { jugadorId });
+    if (data.ok) {
+      showToast('Nota eliminada', 'success');
+      document.getElementById('nota-admin-texto').innerHTML = '<span style="color:#a8a29e;font-style:italic">Sin notas</span>';
+      document.getElementById('nota-admin-editor').style.display = 'none';
+      // Ocultar botón eliminar
+      const btnDel = document.querySelector('#nota-admin-section button[onclick*="eliminarNotaAdmin"]');
+      if (btnDel) btnDel.remove();
+      const btnEdit = document.querySelector('#nota-admin-section button[onclick*="toggleEditarNota"]');
+      if (btnEdit) btnEdit.textContent = '✏️ Agregar nota';
+    } else throw new Error(data.msg);
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
 }
 
 function abrirModal(id) {
