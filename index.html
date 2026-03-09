@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- PAGOS CDP — Frontend v5.27 — 2026-03-09 20:30 ARG -->
+<!-- PAGOS CDP — Frontend v5.27 — 2026-03-09 21:00 ARG -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -3647,7 +3647,7 @@ function renderTarjetaSolicitud(s, esPendiente) {
   const tipoConfig = {
     'Alta':    { bg:'#dbeafe', color:'#1d4ed8', icono:'➕', label:'Alta' },
     'Baja':    { bg:'#fee2e2', color:'#b91c1c', icono:'🚪', label:'Baja' },
-    'Pasivo':  { bg:'#dcfce7', color:'#15803d', icono:'🔄', label:'Cambio Pasivo' },
+    'Pasivo':  { bg:'#dcfce7', color:'#15803d', icono:'🔄', label:'Cambio Socio' },
     'Traspaso':{ bg:'#f3e8ff', color:'#7e22ce', icono:'↔️', label:'Traspaso' },
   }[s.tipoSolicitud || 'Alta'] || { bg:'#f3f4f6', color:'#374151', icono:'?', label:'Solicitud' };
 
@@ -3878,7 +3878,7 @@ async function renderGestionDelegado(subvista = 'menu') {
           <div class="gestion-card" onclick="renderGestionDelegado('gestion-jugadores')">
             <div class="gestion-icon">👥</div>
             <div class="gestion-title">Gestión de Jugadores</div>
-            <div class="gestion-desc">Alta, baja, cambio a pasivo y traspaso de jugadores</div>
+            <div class="gestion-desc">Alta, baja, cambio de tipo de socio y traspaso de jugadores</div>
           </div>
           
           <div class="gestion-card" onclick="renderGestionDelegado('estudios-medicos')">
@@ -3932,8 +3932,8 @@ async function renderGestionDelegado(subvista = 'menu') {
           
           <div class="gestion-card" onclick="renderGestionDelegado('solicitud-pasivo')">
             <div class="gestion-icon">🔄</div>
-            <div class="gestion-title">Cambio a Socio Pasivo</div>
-            <div class="gestion-desc">Solicitar el cambio de categoría de un jugador a socio pasivo</div>
+            <div class="gestion-title">Cambio de Tipo de Socio</div>
+            <div class="gestion-desc">Solicitar cambio de categoría: Activo, Pasivo o Colaborador</div>
           </div>
           
           <div class="gestion-card" onclick="renderGestionDelegado('solicitud-traspaso')">
@@ -4195,7 +4195,7 @@ async function enviarSolicitudBaja() {
   }
 }
 
-// ── FORMULARIO CAMBIO A PASIVO ───────────────────────────────────
+// ── FORMULARIO CAMBIO DE TIPO DE SOCIO ──────────────────────────
 async function renderFormularioPasivo(cnt) {
   cnt.innerHTML = '<div class="loading"><div class="spinner"></div> Cargando jugadores...</div>';
   const dataJug = await api('getJugadores', { equipoId: APP.equipo.id });
@@ -4205,17 +4205,20 @@ async function renderFormularioPasivo(cnt) {
     <div class="card">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
         <button class="btn-sm btn-ver" onclick="renderGestionDelegado('gestion-jugadores')">← Volver</button>
-        <div class="card-title" style="margin:0">🔄 Solicitud de Cambio a Socio Pasivo</div>
+        <div class="card-title" style="margin:0">🔄 Cambio de Tipo de Socio</div>
       </div>
       <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px 16px;margin-bottom:20px;font-size:0.83rem;color:#14532d;line-height:1.7">
-        <strong>ℹ️ Información:</strong> El socio pasivo abona solo la cuota social y no participa en torneos. El administrador realizará el cambio de categoría manualmente en el sistema.
+        <strong>ℹ️ Información:</strong> Solicita el cambio de categoría de socio de un jugador. El administrador realizará la actualización manualmente en el sistema.
       </div>
       <div style="display:flex;flex-direction:column;gap:16px">
         <div class="form-group">
           <label>Jugador *</label>
           <select id="pasivo-jugador" onchange="onSelectJugadorForm('pasivo')" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit;font-size:0.9rem">
             <option value="">— Seleccioná un jugador —</option>
-            ${jugadores.map(j => `<option value="${j.id}" data-nombre="${j.nombre}" data-dni="${j.dni||''}">${j.nombre}${j.dni?' — DNI: '+j.dni:''}</option>`).join('')}
+            ${jugadores.map(j => {
+              const tipoActual = j.tipoSocio ? ` (${j.tipoSocio})` : '';
+              return `<option value="${j.id}" data-nombre="${j.nombre}" data-dni="${j.dni||''}" data-tipo="${j.tipoSocio||''}">${j.nombre}${j.dni?' — DNI: '+j.dni:''}${tipoActual}</option>`;
+            }).join('')}
           </select>
         </div>
         <div style="display:flex;gap:12px;flex-wrap:wrap">
@@ -4226,6 +4229,21 @@ async function renderFormularioPasivo(cnt) {
           <div class="form-group" style="flex:1;min-width:130px">
             <label>DNI</label>
             <input id="pasivo-dni" type="text" readonly style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit;background:var(--gris0);color:var(--gris3)">
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <div class="form-group" style="flex:1;min-width:180px">
+            <label>Tipo de socio actual</label>
+            <input id="pasivo-tipo-actual" type="text" readonly style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit;background:var(--gris0);color:var(--gris3)" placeholder="—">
+          </div>
+          <div class="form-group" style="flex:1;min-width:180px">
+            <label>Nuevo tipo de socio *</label>
+            <select id="pasivo-tipo-nuevo" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit">
+              <option value="">— Seleccioná —</option>
+              <option value="Activo">Activo (profesional con título)</option>
+              <option value="Pasivo">Pasivo (solo cuota social)</option>
+              <option value="Colaborador">Colaborador</option>
+            </select>
           </div>
         </div>
         <div class="form-group">
@@ -4240,18 +4258,22 @@ async function renderFormularioPasivo(cnt) {
 }
 
 async function enviarSolicitudPasivo() {
-  const sel    = document.getElementById('pasivo-jugador');
-  const nombre = document.getElementById('pasivo-nombre')?.value?.trim().toUpperCase();
-  const dni    = document.getElementById('pasivo-dni')?.value?.trim();
-  const motivo = document.getElementById('pasivo-motivo')?.value?.trim();
+  const sel       = document.getElementById('pasivo-jugador');
+  const nombre    = document.getElementById('pasivo-nombre')?.value?.trim().toUpperCase();
+  const dni       = document.getElementById('pasivo-dni')?.value?.trim();
+  const tipoNuevo = document.getElementById('pasivo-tipo-nuevo')?.value;
+  const tipoActual= document.getElementById('pasivo-tipo-actual')?.value?.trim();
+  const motivo    = document.getElementById('pasivo-motivo')?.value?.trim();
   if (!sel || !sel.value) { showToast('Seleccioná un jugador', 'error'); return; }
+  if (!tipoNuevo) { showToast('Seleccioná el nuevo tipo de socio', 'error'); return; }
+  if (tipoNuevo === tipoActual) { showToast('El jugador ya es ' + tipoNuevo + '. Elegí un tipo diferente.', 'error'); return; }
   const btn = document.getElementById('btn-enviar-pasivo');
   btn.disabled = true; btn.textContent = '⏳ Enviando...';
   try {
     const data = await apiPost('solicitarAlta', {
       equipoId: APP.equipo.id, nombreEquipo: APP.equipo.nombre,
       nombre, dni, tipoSolicitud: 'Pasivo',
-      datosExtra: JSON.stringify({ motivo: motivo || '—' }),
+      datosExtra: JSON.stringify({ tipoActual: tipoActual||'—', tipoNuevo, motivo: motivo || '—' }),
     });
     if (data.ok) {
       showToast(data.msg, 'success');
@@ -4353,6 +4375,8 @@ function onSelectJugadorForm(prefix) {
   const opt = sel.options[sel.selectedIndex];
   document.getElementById(prefix + '-nombre').value = opt.dataset.nombre || '';
   document.getElementById(prefix + '-dni').value    = opt.dataset.dni    || '';
+  const tipoActualEl = document.getElementById(prefix + '-tipo-actual');
+  if (tipoActualEl) tipoActualEl.value = opt.dataset.tipo || '—';
 }
 
 async function renderEstudiosMedicosDelegado(cnt) {
@@ -4509,7 +4533,7 @@ async function renderMisSolicitudes(cnt) {
               const tipoConfig = {
                 'Alta':    { bg:'#dbeafe', color:'#1d4ed8', icono:'➕', label:'Alta' },
                 'Baja':    { bg:'#fee2e2', color:'#b91c1c', icono:'🚪', label:'Baja' },
-                'Pasivo':  { bg:'#dcfce7', color:'#15803d', icono:'🔄', label:'Cambio Pasivo' },
+                'Pasivo':  { bg:'#dcfce7', color:'#15803d', icono:'🔄', label:'Cambio Socio' },
                 'Traspaso':{ bg:'#f3e8ff', color:'#7e22ce', icono:'↔️', label:'Traspaso' },
               }[s.tipoSolicitud || 'Alta'] || { bg:'#f3f4f6', color:'#374151', icono:'?', label:'Solicitud' };
 
