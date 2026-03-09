@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- PAGOS CDP — Frontend v5.27 — 2026-03-09 20:00 ARG -->
+<!-- PAGOS CDP — Frontend v5.27 — 2026-03-09 20:30 ARG -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -4127,7 +4127,11 @@ async function enviarSolicitudAlta() {
 }
 
 // ── FORMULARIO BAJA ──────────────────────────────────────────────
-function renderFormularioBaja(cnt) {
+async function renderFormularioBaja(cnt) {
+  cnt.innerHTML = '<div class="loading"><div class="spinner"></div> Cargando jugadores...</div>';
+  const dataJug = await api('getJugadores', { equipoId: APP.equipo.id });
+  const jugadores = (dataJug.ok ? dataJug.jugadores : []).sort((a,b) => a.nombre.localeCompare(b.nombre));
+
   cnt.innerHTML = `
     <div class="card">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
@@ -4138,14 +4142,21 @@ function renderFormularioBaja(cnt) {
         <strong>ℹ️ Información:</strong> Esta solicitud notificará al administrador para dar de baja al jugador del sistema. Los cambios los realizará manualmente el administrador.
       </div>
       <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="form-group">
+          <label>Jugador *</label>
+          <select id="baja-jugador" onchange="onSelectJugadorForm('baja')" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit;font-size:0.9rem">
+            <option value="">— Seleccioná un jugador —</option>
+            ${jugadores.map(j => `<option value="${j.id}" data-nombre="${j.nombre}" data-dni="${j.dni||''}">${j.nombre}${j.dni?' — DNI: '+j.dni:''}</option>`).join('')}
+          </select>
+        </div>
         <div style="display:flex;gap:12px;flex-wrap:wrap">
           <div class="form-group" style="flex:2;min-width:200px">
-            <label>Apellido y Nombres del jugador *</label>
-            <input id="baja-nombre" type="text" placeholder="GARCIA JUAN MARTIN" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit;text-transform:uppercase">
+            <label>Nombre confirmado</label>
+            <input id="baja-nombre" type="text" readonly style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit;background:var(--gris0);color:var(--gris3)">
           </div>
           <div class="form-group" style="flex:1;min-width:130px">
-            <label>DNI *</label>
-            <input id="baja-dni" type="text" placeholder="12345678" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit">
+            <label>DNI</label>
+            <input id="baja-dni" type="text" readonly style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit;background:var(--gris0);color:var(--gris3)">
           </div>
         </div>
         <div class="form-group">
@@ -4160,10 +4171,11 @@ function renderFormularioBaja(cnt) {
 }
 
 async function enviarSolicitudBaja() {
+  const sel    = document.getElementById('baja-jugador');
   const nombre = document.getElementById('baja-nombre')?.value?.trim().toUpperCase();
   const dni    = document.getElementById('baja-dni')?.value?.trim();
   const motivo = document.getElementById('baja-motivo')?.value?.trim();
-  if (!nombre || !dni) { showToast('Completá nombre y DNI', 'error'); return; }
+  if (!sel || !sel.value) { showToast('Seleccioná un jugador', 'error'); return; }
   if (!motivo) { showToast('Ingresá el motivo de la baja', 'error'); return; }
   const btn = document.getElementById('btn-enviar-baja');
   btn.disabled = true; btn.textContent = '⏳ Enviando...';
@@ -4184,7 +4196,11 @@ async function enviarSolicitudBaja() {
 }
 
 // ── FORMULARIO CAMBIO A PASIVO ───────────────────────────────────
-function renderFormularioPasivo(cnt) {
+async function renderFormularioPasivo(cnt) {
+  cnt.innerHTML = '<div class="loading"><div class="spinner"></div> Cargando jugadores...</div>';
+  const dataJug = await api('getJugadores', { equipoId: APP.equipo.id });
+  const jugadores = (dataJug.ok ? dataJug.jugadores : []).sort((a,b) => a.nombre.localeCompare(b.nombre));
+
   cnt.innerHTML = `
     <div class="card">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
@@ -4195,14 +4211,21 @@ function renderFormularioPasivo(cnt) {
         <strong>ℹ️ Información:</strong> El socio pasivo abona solo la cuota social y no participa en torneos. El administrador realizará el cambio de categoría manualmente en el sistema.
       </div>
       <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="form-group">
+          <label>Jugador *</label>
+          <select id="pasivo-jugador" onchange="onSelectJugadorForm('pasivo')" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit;font-size:0.9rem">
+            <option value="">— Seleccioná un jugador —</option>
+            ${jugadores.map(j => `<option value="${j.id}" data-nombre="${j.nombre}" data-dni="${j.dni||''}">${j.nombre}${j.dni?' — DNI: '+j.dni:''}</option>`).join('')}
+          </select>
+        </div>
         <div style="display:flex;gap:12px;flex-wrap:wrap">
           <div class="form-group" style="flex:2;min-width:200px">
-            <label>Apellido y Nombres del jugador *</label>
-            <input id="pasivo-nombre" type="text" placeholder="GARCIA JUAN MARTIN" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit;text-transform:uppercase">
+            <label>Nombre confirmado</label>
+            <input id="pasivo-nombre" type="text" readonly style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit;background:var(--gris0);color:var(--gris3)">
           </div>
           <div class="form-group" style="flex:1;min-width:130px">
-            <label>DNI *</label>
-            <input id="pasivo-dni" type="text" placeholder="12345678" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit">
+            <label>DNI</label>
+            <input id="pasivo-dni" type="text" readonly style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit;background:var(--gris0);color:var(--gris3)">
           </div>
         </div>
         <div class="form-group">
@@ -4217,10 +4240,11 @@ function renderFormularioPasivo(cnt) {
 }
 
 async function enviarSolicitudPasivo() {
+  const sel    = document.getElementById('pasivo-jugador');
   const nombre = document.getElementById('pasivo-nombre')?.value?.trim().toUpperCase();
   const dni    = document.getElementById('pasivo-dni')?.value?.trim();
   const motivo = document.getElementById('pasivo-motivo')?.value?.trim();
-  if (!nombre || !dni) { showToast('Completá nombre y DNI', 'error'); return; }
+  if (!sel || !sel.value) { showToast('Seleccioná un jugador', 'error'); return; }
   const btn = document.getElementById('btn-enviar-pasivo');
   btn.disabled = true; btn.textContent = '⏳ Enviando...';
   try {
@@ -4321,6 +4345,14 @@ async function enviarSolicitudTraspaso() {
     showToast('Error: ' + e.message, 'error');
     btn.disabled = false; btn.textContent = '📤 Enviar solicitud de traspaso';
   }
+}
+
+// Helper: al seleccionar jugador del dropdown, rellena nombre y DNI readonly
+function onSelectJugadorForm(prefix) {
+  const sel = document.getElementById(prefix + '-jugador');
+  const opt = sel.options[sel.selectedIndex];
+  document.getElementById(prefix + '-nombre').value = opt.dataset.nombre || '';
+  document.getElementById(prefix + '-dni').value    = opt.dataset.dni    || '';
 }
 
 async function renderEstudiosMedicosDelegado(cnt) {
