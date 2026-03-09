@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- PAGOS CDP — Frontend v5.26 — 2026-03-07 12:00 ARG -->
+<!-- PAGOS CDP — Frontend v5.27 — 2026-03-09 20:00 ARG -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -3619,7 +3619,7 @@ async function renderSolicitudesAlta() {
 
     cnt.innerHTML = `
       <div class="card">
-        <div class="card-title">📥 Solicitudes de Alta de Jugadores</div>
+        <div class="card-title">📥 Solicitudes de Gestión de Jugadores</div>
         ${pendientes.length === 0
           ? '<div class="empty"><div class="empty-icon">✅</div>No hay solicitudes pendientes.</div>'
           : pendientes.map(s => renderTarjetaSolicitud(s, true)).join('')}
@@ -3644,19 +3644,46 @@ function renderTarjetaSolicitud(s, esPendiente) {
     'Observada':  { bg:'#e0f2fe', color:'#0369a1', icono:'📝' },
   }[s.estado] || { bg:'#f3f4f6', color:'#374151', icono:'?' };
 
+  const tipoConfig = {
+    'Alta':    { bg:'#dbeafe', color:'#1d4ed8', icono:'➕', label:'Alta' },
+    'Baja':    { bg:'#fee2e2', color:'#b91c1c', icono:'🚪', label:'Baja' },
+    'Pasivo':  { bg:'#dcfce7', color:'#15803d', icono:'🔄', label:'Cambio Pasivo' },
+    'Traspaso':{ bg:'#f3e8ff', color:'#7e22ce', icono:'↔️', label:'Traspaso' },
+  }[s.tipoSolicitud || 'Alta'] || { bg:'#f3f4f6', color:'#374151', icono:'?', label:'Solicitud' };
+
+  let extra = {};
+  try { extra = s.datosExtra ? JSON.parse(s.datosExtra) : {}; } catch(e) {}
+
+  // Info extra según tipo
+  let extraHtml = '';
+  if (s.tipoSolicitud === 'Baja' && extra.motivo) {
+    extraHtml = `<div style="font-size:0.78rem;color:var(--gris3);margin-top:2px">📋 Motivo: ${extra.motivo}</div>`;
+  } else if (s.tipoSolicitud === 'Pasivo' && extra.motivo && extra.motivo !== '—') {
+    extraHtml = `<div style="font-size:0.78rem;color:var(--gris3);margin-top:2px">📋 Motivo: ${extra.motivo}</div>`;
+  } else if (s.tipoSolicitud === 'Traspaso') {
+    extraHtml = `<div style="font-size:0.78rem;color:var(--gris3);margin-top:2px">🏟️ Origen: ${extra.equipoOrigen||'—'}${extra.obs && extra.obs!=='—'?' · '+extra.obs:''}</div>`;
+  } else if (s.tipoSolicitud === 'Alta' || !s.tipoSolicitud) {
+    extraHtml = `<div style="font-size:0.78rem;color:var(--gris3);margin-top:2px">
+      👤 ${formatTipoSocio(s.tipoSocio)} · Título: ${s.tipoTitulo||'—'}
+      ${s.mas35 ? ' · <span style="background:#dbeafe;color:#1d4ed8;padding:1px 6px;border-radius:8px;font-size:0.72rem;font-weight:700">' + getLabelMasById(s.equipoId) + '</span>' : ''}
+      ${s.ic    ? ' · <span style="background:#fef9c3;color:#92400e;padding:1px 6px;border-radius:8px;font-size:0.72rem;font-weight:700">IC</span>' : ''}
+    </div>`;
+  }
+
   return `
     <div style="background:var(--gris0);border:1.5px solid var(--gris1);border-radius:12px;padding:16px;margin-bottom:12px">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
         <div style="flex:1;min-width:220px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+            <span style="padding:2px 10px;border-radius:20px;font-size:0.73rem;font-weight:700;background:${tipoConfig.bg};color:${tipoConfig.color}">
+              ${tipoConfig.icono} ${tipoConfig.label}
+            </span>
+          </div>
           <div style="font-weight:700;font-size:1rem;color:var(--texto)">${s.nombre}</div>
           <div style="font-size:0.78rem;color:var(--gris3);margin-top:2px">
-            🏟️ ${s.nombreEquipo} · DNI: ${s.dni} · Nac: ${s.fechaNac}
+            🏟️ ${s.nombreEquipo} · DNI: ${s.dni}${s.fechaNac ? ' · Nac: '+s.fechaNac : ''}
           </div>
-          <div style="font-size:0.78rem;color:var(--gris3);margin-top:2px">
-            👤 ${formatTipoSocio(s.tipoSocio)} · Título: ${s.tipoTitulo||'—'}
-            ${s.mas35 ? ' · <span style="background:#dbeafe;color:#1d4ed8;padding:1px 6px;border-radius:8px;font-size:0.72rem;font-weight:700">' + getLabelMasById(s.equipoId) + '</span>' : ''}
-            ${s.ic    ? ' · <span style="background:#fef9c3;color:#92400e;padding:1px 6px;border-radius:8px;font-size:0.72rem;font-weight:700">IC</span>' : ''}
-          </div>
+          ${extraHtml}
           <div style="font-size:0.75rem;color:var(--gris2);margin-top:4px">Solicitado: ${s.fechaSolicitud}</div>
           ${s.obsAdmin ? `<div style="font-size:0.8rem;color:var(--rojo);margin-top:4px;padding:6px 10px;background:#fff1f2;border-radius:6px">📝 ${s.obsAdmin}</div>` : ''}
           ${s.driveFolder ? `<div style="margin-top:6px"><a href="${s.driveFolder}" target="_blank" style="font-size:0.78rem;color:var(--azul2);text-decoration:none">📁 Ver archivos en Drive</a></div>` : ''}
@@ -3666,7 +3693,7 @@ function renderTarjetaSolicitud(s, esPendiente) {
             ${estadoColor.icono} ${s.estado}
           </span>
           ${esPendiente ? `
-            <button class="btn-sm btn-aprobar" onclick="resolverSolicitud('${s.id}','Aprobada')">✅ Aprobar</button>
+            <button class="btn-sm btn-aprobar" onclick="resolverSolicitud('${s.id}','Aprobada','${(s.tipoSolicitud||'Alta')}')">✅ Aprobar</button>
             <button class="btn-sm" style="background:#0ea5e9;color:white" onclick="abrirModalObservacion('${s.id}','${s.nombre.replace(/'/g,"\'")}','Observada')">📝 Observar</button>
             <button class="btn-sm btn-rechazar" onclick="abrirModalObservacion('${s.id}','${s.nombre.replace(/'/g,"\'")}','Rechazada')">❌ Rechazar</button>
           ` : ''}
@@ -3675,12 +3702,19 @@ function renderTarjetaSolicitud(s, esPendiente) {
     </div>`;
 }
 
-async function resolverSolicitud(id, decision, obs) {
+async function resolverSolicitud(id, decision, tipoSolicitud) {
+  const tipo = tipoSolicitud || 'Alta';
   if (decision === 'Aprobada') {
-    if (!confirm(`¿Aprobar la solicitud y DAR DE ALTA al jugador automáticamente?`)) return;
+    const msgs = {
+      'Alta':    '¿Aprobar la solicitud y DAR DE ALTA al jugador automáticamente?',
+      'Baja':    '¿Aprobar la solicitud de BAJA? El administrador deberá realizar los cambios manualmente.',
+      'Pasivo':  '¿Aprobar el CAMBIO A PASIVO? El administrador deberá actualizar el registro manualmente.',
+      'Traspaso':'¿Aprobar el TRASPASO? El administrador deberá realizar el traspaso manualmente.',
+    };
+    if (!confirm(msgs[tipo] || msgs['Alta'])) return;
   }
   try {
-    const data = await api('resolverSolicitudAlta', { id, decision, obs: obs||'' });
+    const data = await api('resolverSolicitudAlta', { id, decision, obs: '' });
     if (data.ok) {
       showToast(data.msg, 'success');
       renderSolicitudesAlta();
@@ -3841,10 +3875,10 @@ async function renderGestionDelegado(subvista = 'menu') {
         <div class="card-title">⚙️ Gestión — ${APP.equipo.nombre}</div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:4px">
           
-          <div class="gestion-card" onclick="renderGestionDelegado('solicitud-alta')">
-            <div class="gestion-icon">➕</div>
-            <div class="gestion-title">Solicitar Alta</div>
-            <div class="gestion-desc">Solicitar el alta de un nuevo jugador/socio con documentación completa</div>
+          <div class="gestion-card" onclick="renderGestionDelegado('gestion-jugadores')">
+            <div class="gestion-icon">👥</div>
+            <div class="gestion-title">Gestión de Jugadores</div>
+            <div class="gestion-desc">Alta, baja, cambio a pasivo y traspaso de jugadores</div>
           </div>
           
           <div class="gestion-card" onclick="renderGestionDelegado('estudios-medicos')">
@@ -3856,7 +3890,7 @@ async function renderGestionDelegado(subvista = 'menu') {
           <div class="gestion-card" onclick="renderGestionDelegado('mis-solicitudes')">
             <div class="gestion-icon">📋</div>
             <div class="gestion-title">Mis Solicitudes</div>
-            <div class="gestion-desc">Ver el estado de las solicitudes de alta enviadas</div>
+            <div class="gestion-desc">Ver el estado de todas las solicitudes enviadas</div>
           </div>
           
           <div class="gestion-card" onclick="descargarFicha('medica')">
@@ -3875,8 +3909,60 @@ async function renderGestionDelegado(subvista = 'menu') {
     return;
   }
 
+  if (subvista === 'gestion-jugadores') {
+    cnt.innerHTML = `
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+          <button class="btn-sm btn-ver" onclick="renderGestionDelegado('menu')">← Volver</button>
+          <div class="card-title" style="margin:0">👥 Gestión de Jugadores — ${APP.equipo.nombre}</div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px">
+          
+          <div class="gestion-card" onclick="renderGestionDelegado('solicitud-alta')">
+            <div class="gestion-icon">➕</div>
+            <div class="gestion-title">Solicitud de Alta</div>
+            <div class="gestion-desc">Solicitar el alta de un nuevo jugador/socio con documentación completa</div>
+          </div>
+          
+          <div class="gestion-card" onclick="renderGestionDelegado('solicitud-baja')">
+            <div class="gestion-icon">🚪</div>
+            <div class="gestion-title">Solicitud de Baja</div>
+            <div class="gestion-desc">Solicitar la baja completa de un jugador del equipo</div>
+          </div>
+          
+          <div class="gestion-card" onclick="renderGestionDelegado('solicitud-pasivo')">
+            <div class="gestion-icon">🔄</div>
+            <div class="gestion-title">Cambio a Socio Pasivo</div>
+            <div class="gestion-desc">Solicitar el cambio de categoría de un jugador a socio pasivo</div>
+          </div>
+          
+          <div class="gestion-card" onclick="renderGestionDelegado('solicitud-traspaso')">
+            <div class="gestion-icon">↔️</div>
+            <div class="gestion-title">Solicitud de Traspaso</div>
+            <div class="gestion-desc">Solicitar el traspaso de un jugador desde otro equipo al tuyo</div>
+          </div>
+        </div>
+      </div>`;
+    return;
+  }
+
   if (subvista === 'solicitud-alta') {
     renderFormularioSolicitudAlta(cnt);
+    return;
+  }
+
+  if (subvista === 'solicitud-baja') {
+    renderFormularioBaja(cnt);
+    return;
+  }
+
+  if (subvista === 'solicitud-pasivo') {
+    renderFormularioPasivo(cnt);
+    return;
+  }
+
+  if (subvista === 'solicitud-traspaso') {
+    renderFormularioTraspaso(cnt);
     return;
   }
 
@@ -4028,6 +4114,7 @@ async function enviarSolicitudAlta() {
       mas35: String(mas35),
       ic:    String(ic),
       archivos: JSON.stringify(adjuntos),
+      tipoSolicitud: 'Alta',
     });
     if (data.ok) {
       showToast('¡Solicitud enviada! El administrador la revisará pronto ✅', 'success');
@@ -4036,6 +4123,203 @@ async function enviarSolicitudAlta() {
   } catch(e) {
     showToast('Error: ' + e.message, 'error');
     btn.disabled = false; btn.textContent = '📤 Enviar solicitud';
+  }
+}
+
+// ── FORMULARIO BAJA ──────────────────────────────────────────────
+function renderFormularioBaja(cnt) {
+  cnt.innerHTML = `
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+        <button class="btn-sm btn-ver" onclick="renderGestionDelegado('gestion-jugadores')">← Volver</button>
+        <div class="card-title" style="margin:0">🚪 Solicitud de Baja de Jugador</div>
+      </div>
+      <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:14px 16px;margin-bottom:20px;font-size:0.83rem;color:#9a3412;line-height:1.7">
+        <strong>ℹ️ Información:</strong> Esta solicitud notificará al administrador para dar de baja al jugador del sistema. Los cambios los realizará manualmente el administrador.
+      </div>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <div class="form-group" style="flex:2;min-width:200px">
+            <label>Apellido y Nombres del jugador *</label>
+            <input id="baja-nombre" type="text" placeholder="GARCIA JUAN MARTIN" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit;text-transform:uppercase">
+          </div>
+          <div class="form-group" style="flex:1;min-width:130px">
+            <label>DNI *</label>
+            <input id="baja-dni" type="text" placeholder="12345678" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Motivo de la baja *</label>
+          <textarea id="baja-motivo" rows="3" placeholder="Indicá el motivo de la baja..." style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit;font-size:0.9rem;resize:vertical"></textarea>
+        </div>
+        <button class="btn-sm btn-aprobar" style="padding:12px 24px;font-size:0.95rem;margin-top:8px" onclick="enviarSolicitudBaja()" id="btn-enviar-baja">
+          📤 Enviar solicitud de baja
+        </button>
+      </div>
+    </div>`;
+}
+
+async function enviarSolicitudBaja() {
+  const nombre = document.getElementById('baja-nombre')?.value?.trim().toUpperCase();
+  const dni    = document.getElementById('baja-dni')?.value?.trim();
+  const motivo = document.getElementById('baja-motivo')?.value?.trim();
+  if (!nombre || !dni) { showToast('Completá nombre y DNI', 'error'); return; }
+  if (!motivo) { showToast('Ingresá el motivo de la baja', 'error'); return; }
+  const btn = document.getElementById('btn-enviar-baja');
+  btn.disabled = true; btn.textContent = '⏳ Enviando...';
+  try {
+    const data = await apiPost('solicitarAlta', {
+      equipoId: APP.equipo.id, nombreEquipo: APP.equipo.nombre,
+      nombre, dni, tipoSolicitud: 'Baja',
+      datosExtra: JSON.stringify({ motivo }),
+    });
+    if (data.ok) {
+      showToast(data.msg, 'success');
+      renderGestionDelegado('menu');
+    } else throw new Error(data.msg);
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+    btn.disabled = false; btn.textContent = '📤 Enviar solicitud de baja';
+  }
+}
+
+// ── FORMULARIO CAMBIO A PASIVO ───────────────────────────────────
+function renderFormularioPasivo(cnt) {
+  cnt.innerHTML = `
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+        <button class="btn-sm btn-ver" onclick="renderGestionDelegado('gestion-jugadores')">← Volver</button>
+        <div class="card-title" style="margin:0">🔄 Solicitud de Cambio a Socio Pasivo</div>
+      </div>
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px 16px;margin-bottom:20px;font-size:0.83rem;color:#14532d;line-height:1.7">
+        <strong>ℹ️ Información:</strong> El socio pasivo abona solo la cuota social y no participa en torneos. El administrador realizará el cambio de categoría manualmente en el sistema.
+      </div>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <div class="form-group" style="flex:2;min-width:200px">
+            <label>Apellido y Nombres del jugador *</label>
+            <input id="pasivo-nombre" type="text" placeholder="GARCIA JUAN MARTIN" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit;text-transform:uppercase">
+          </div>
+          <div class="form-group" style="flex:1;min-width:130px">
+            <label>DNI *</label>
+            <input id="pasivo-dni" type="text" placeholder="12345678" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Motivo del cambio (opcional)</label>
+          <textarea id="pasivo-motivo" rows="3" placeholder="Podés indicar el motivo si querés..." style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit;font-size:0.9rem;resize:vertical"></textarea>
+        </div>
+        <button class="btn-sm btn-aprobar" style="padding:12px 24px;font-size:0.95rem;margin-top:8px" onclick="enviarSolicitudPasivo()" id="btn-enviar-pasivo">
+          📤 Enviar solicitud de cambio
+        </button>
+      </div>
+    </div>`;
+}
+
+async function enviarSolicitudPasivo() {
+  const nombre = document.getElementById('pasivo-nombre')?.value?.trim().toUpperCase();
+  const dni    = document.getElementById('pasivo-dni')?.value?.trim();
+  const motivo = document.getElementById('pasivo-motivo')?.value?.trim();
+  if (!nombre || !dni) { showToast('Completá nombre y DNI', 'error'); return; }
+  const btn = document.getElementById('btn-enviar-pasivo');
+  btn.disabled = true; btn.textContent = '⏳ Enviando...';
+  try {
+    const data = await apiPost('solicitarAlta', {
+      equipoId: APP.equipo.id, nombreEquipo: APP.equipo.nombre,
+      nombre, dni, tipoSolicitud: 'Pasivo',
+      datosExtra: JSON.stringify({ motivo: motivo || '—' }),
+    });
+    if (data.ok) {
+      showToast(data.msg, 'success');
+      renderGestionDelegado('menu');
+    } else throw new Error(data.msg);
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+    btn.disabled = false; btn.textContent = '📤 Enviar solicitud de cambio';
+  }
+}
+
+// ── FORMULARIO TRASPASO ──────────────────────────────────────────
+function renderFormularioTraspaso(cnt) {
+  cnt.innerHTML = `
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+        <button class="btn-sm btn-ver" onclick="renderGestionDelegado('gestion-jugadores')">← Volver</button>
+        <div class="card-title" style="margin:0">↔️ Solicitud de Traspaso</div>
+      </div>
+      <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px 16px;margin-bottom:20px;font-size:0.83rem;color:#1d4ed8;line-height:1.7">
+        <strong>ℹ️ Información:</strong> Solicitás el traspaso de un jugador <strong>desde otro equipo hacia el tuyo</strong>. El administrador coordinará con el equipo de origen y realizará el cambio manualmente.<br>
+        Podés adjuntar documentación de respaldo (formulario de traspaso, etc.).
+      </div>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div style="font-weight:700;font-size:0.85rem;color:var(--azul);text-transform:uppercase;letter-spacing:0.05em;padding-bottom:6px;border-bottom:2px solid var(--gris1)">
+          👤 Datos del jugador
+        </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <div class="form-group" style="flex:2;min-width:200px">
+            <label>Apellido y Nombres del jugador *</label>
+            <input id="trasp-nombre" type="text" placeholder="GARCIA JUAN MARTIN" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit;text-transform:uppercase">
+          </div>
+          <div class="form-group" style="flex:1;min-width:130px">
+            <label>DNI *</label>
+            <input id="trasp-dni" type="text" placeholder="12345678" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Equipo de origen (desde dónde viene) *</label>
+          <input id="trasp-origen" type="text" placeholder="Nombre del equipo actual del jugador" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit">
+        </div>
+        <div class="form-group">
+          <label>Observaciones adicionales</label>
+          <textarea id="trasp-obs" rows="2" placeholder="Cualquier información adicional relevante..." style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit;font-size:0.9rem;resize:vertical"></textarea>
+        </div>
+        
+        <div style="font-weight:700;font-size:0.85rem;color:var(--azul);text-transform:uppercase;letter-spacing:0.05em;padding-bottom:6px;border-bottom:2px solid var(--gris1);margin-top:4px">
+          📎 Documentación de respaldo (opcional)
+        </div>
+        <div style="border:1.5px dashed var(--gris1);border-radius:10px;padding:14px;background:var(--gris0)">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <span style="font-size:0.83rem;font-weight:600;color:var(--texto)">📁 Formulario de traspaso u otro doc.</span>
+            <span id="file-status-trasp" style="font-size:0.75rem;color:var(--gris3)">Sin archivo</span>
+          </div>
+          <label style="display:inline-flex;align-items:center;gap:8px;padding:8px 14px;background:var(--azul2);color:white;border-radius:7px;cursor:pointer;font-size:0.82rem;font-weight:600">
+            📎 Seleccionar archivo
+            <input type="file" accept=".pdf,.jpg,.jpeg,.png" style="display:none" onchange="handleAdjunto(this,'trasp')">
+          </label>
+        </div>
+
+        <button class="btn-sm btn-aprobar" style="padding:12px 24px;font-size:0.95rem;margin-top:8px" onclick="enviarSolicitudTraspaso()" id="btn-enviar-trasp">
+          📤 Enviar solicitud de traspaso
+        </button>
+      </div>
+    </div>`;
+  window._adjuntos = {};
+}
+
+async function enviarSolicitudTraspaso() {
+  const nombre = document.getElementById('trasp-nombre')?.value?.trim().toUpperCase();
+  const dni    = document.getElementById('trasp-dni')?.value?.trim();
+  const origen = document.getElementById('trasp-origen')?.value?.trim();
+  const obs    = document.getElementById('trasp-obs')?.value?.trim();
+  if (!nombre || !dni) { showToast('Completá nombre y DNI', 'error'); return; }
+  if (!origen) { showToast('Indicá el equipo de origen del jugador', 'error'); return; }
+  const adjuntos = Object.values(window._adjuntos || {});
+  const btn = document.getElementById('btn-enviar-trasp');
+  btn.disabled = true; btn.textContent = '⏳ Enviando...';
+  try {
+    const data = await apiPost('solicitarAlta', {
+      equipoId: APP.equipo.id, nombreEquipo: APP.equipo.nombre,
+      nombre, dni, tipoSolicitud: 'Traspaso',
+      datosExtra: JSON.stringify({ equipoOrigen: origen, obs: obs || '—' }),
+      archivos: adjuntos.length ? JSON.stringify(adjuntos) : '',
+    });
+    if (data.ok) {
+      showToast(data.msg, 'success');
+      renderGestionDelegado('menu');
+    } else throw new Error(data.msg);
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+    btn.disabled = false; btn.textContent = '📤 Enviar solicitud de traspaso';
   }
 }
 
@@ -4180,21 +4464,38 @@ async function renderMisSolicitudes(cnt) {
     cnt.innerHTML = `
       <div class="card">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
-          <button class="btn-sm btn-ver" onclick="renderGestionDelegado('menu')">← Volver</button>
-          <div class="card-title" style="margin:0">📋 Mis Solicitudes de Alta</div>
+          <button class="btn-sm btn-ver" onclick="renderGestionDelegado('gestion-jugadores')">← Volver</button>
+          <div class="card-title" style="margin:0">📋 Mis Solicitudes</div>
         </div>
         ${sols.length === 0
           ? '<div class="empty"><div class="empty-icon">📋</div>No hay solicitudes enviadas aún.</div>'
           : sols.map(s => {
               const estadoColor = {
-                'Pendiente':  '#d97706', 'Aprobada': '#15803d',
-                'Rechazada':  '#dc2626', 'Observada': '#0369a1',
+                'Pendiente': '#d97706', 'Aprobada': '#15803d',
+                'Rechazada': '#dc2626', 'Observada': '#0369a1',
               }[s.estado] || '#64748b';
+              const tipoConfig = {
+                'Alta':    { bg:'#dbeafe', color:'#1d4ed8', icono:'➕', label:'Alta' },
+                'Baja':    { bg:'#fee2e2', color:'#b91c1c', icono:'🚪', label:'Baja' },
+                'Pasivo':  { bg:'#dcfce7', color:'#15803d', icono:'🔄', label:'Cambio Pasivo' },
+                'Traspaso':{ bg:'#f3e8ff', color:'#7e22ce', icono:'↔️', label:'Traspaso' },
+              }[s.tipoSolicitud || 'Alta'] || { bg:'#f3f4f6', color:'#374151', icono:'?', label:'Solicitud' };
+
+              let extra = {};
+              try { extra = s.datosExtra ? JSON.parse(s.datosExtra) : {}; } catch(e) {}
+              let infoExtra = '';
+              if (s.tipoSolicitud === 'Traspaso') infoExtra = `Origen: ${extra.equipoOrigen||'—'}`;
+              else if (extra.motivo && extra.motivo !== '—') infoExtra = extra.motivo;
+
               return `<div style="border:1.5px solid var(--gris1);border-radius:10px;padding:14px;margin-bottom:10px">
-                <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:8px">
                   <div>
+                    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+                      <span style="padding:2px 9px;border-radius:20px;font-size:0.72rem;font-weight:700;background:${tipoConfig.bg};color:${tipoConfig.color}">${tipoConfig.icono} ${tipoConfig.label}</span>
+                    </div>
                     <div style="font-weight:700">${s.nombre}</div>
                     <div style="font-size:0.78rem;color:var(--gris3)">DNI: ${s.dni} · ${s.fechaSolicitud}</div>
+                    ${infoExtra ? `<div style="font-size:0.78rem;color:var(--gris3)">${infoExtra}</div>` : ''}
                     ${s.obsAdmin ? `<div style="margin-top:6px;font-size:0.8rem;color:var(--rojo);padding:6px 10px;background:#fff1f2;border-radius:6px">📝 ${s.obsAdmin}</div>` : ''}
                   </div>
                   <span style="padding:4px 12px;border-radius:20px;font-weight:700;font-size:0.8rem;background:${estadoColor}20;color:${estadoColor}">${s.estado}</span>
