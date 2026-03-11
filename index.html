@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- PAGOS CDP — Frontend v5.33 — 2026-03-10 20:30 ARG -->
+<!-- PAGOS CDP — Frontend v5.34 — 2026-03-11 15:00 ARG -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -725,11 +725,11 @@
 </div>
 
 <!-- ═══════ MODAL VER COMPROBANTE ════════════════════════════════════ -->
-<div class="modal-overlay" id="modal-ver">
+<div class="modal-overlay" id="modal-ver" onclick="if(event.target===this)cerrarModal('modal-ver')">
   <div class="modal">
     <div class="modal-header">
       <span class="modal-title">Ver Comprobante</span>
-      <button class="modal-close" onclick="cerrarModal('modal-ver')">✕</button>
+      <button class="modal-close" onclick="cerrarModal('modal-ver')" style="background:#fee2e2;color:#b91c1c;border:1.5px solid #fca5a5;font-weight:700;font-size:1rem;width:36px;height:36px" title="Cerrar">✕</button>
     </div>
     <div class="modal-body" id="modal-ver-body">
     </div>
@@ -1575,7 +1575,7 @@ function renderFilaDelegado(i, jugador, comp, mes, labelMas, allComp) {
   }
 
   const obsHtml = comp?.obsAdmin
-    ? `<span class="obs-tag" title="${comp.obsAdmin}">${comp.obsAdmin}</span>`
+    ? `<span class="obs-tag" title="${comp.obsAdmin}" style="display:block;white-space:normal;word-break:break-word;max-width:160px;line-height:1.4">${comp.obsAdmin}</span>`
     : '—';
 
   const badges = [
@@ -1678,6 +1678,10 @@ async function renderAdmin() {
     const data = await api('getResumen');
     if (!data.ok) throw new Error(data.msg);
 
+    // Cargar también comprobantes rechazados del mes activo para el resumen
+    const dataRech = await api('getAllComprobantes', { mes: APP.filtroMes, estado: 'Rechazado' });
+    const compRechazados = (dataRech.ok ? dataRech.comprobantes : []);
+
     const { total, aprobados, pendientes, rechazados, porEquipo, sancionesData } = data;
     const totalSancionados = (sancionesData||[]).length;
     cnt.innerHTML = `
@@ -1767,6 +1771,43 @@ async function renderAdmin() {
           </table>
         </div>
       </div>
+      ${(() => {
+        if (!compRechazados.length) return '';
+        // Agrupar rechazos por equipo
+        const porEqRech = {};
+        compRechazados.forEach(c => {
+          const eqKey = String(c.equipoId||'').replace(/_/g,' ');
+          if (!porEqRech[eqKey]) porEqRech[eqKey] = [];
+          porEqRech[eqKey].push(c);
+        });
+        const equiposOrdenados = Object.keys(porEqRech).sort();
+        return `<div class="card">
+          <div class="card-title" style="color:var(--rojo)">❌ Rechazos del mes — ${APP.filtroMes} (${compRechazados.length})</div>
+          <div style="display:flex;flex-direction:column;gap:14px">
+            ${equiposOrdenados.map(eq => {
+              const items = porEqRech[eq];
+              return `<div style="border:1px solid #fecaca;border-radius:10px;overflow:hidden">
+                <div style="background:#fee2e2;padding:8px 14px;font-weight:700;font-size:0.82rem;color:#b91c1c">${eq} — ${items.length} rechazo${items.length>1?'s':''}</div>
+                <table style="width:100%;border-collapse:collapse">
+                  <thead><tr style="background:#fff1f2">
+                    <th style="padding:6px 12px;font-size:0.75rem;text-align:left;color:#6b7280;font-weight:600">Jugador</th>
+                    <th style="padding:6px 12px;font-size:0.75rem;text-align:left;color:#6b7280;font-weight:600">Observación del rechazo</th>
+                    <th style="padding:6px 12px;font-size:0.75rem;text-align:center;color:#6b7280;font-weight:600">Ver</th>
+                  </tr></thead>
+                  <tbody>
+                    ${items.sort((a,b)=>a.jugadorNombre.localeCompare(b.jugadorNombre,'es')).map(c=>`
+                      <tr style="border-top:1px solid #fecaca">
+                        <td style="padding:7px 12px;font-size:0.85rem;font-weight:500">${c.jugadorNombre}</td>
+                        <td style="padding:7px 12px;font-size:0.82rem;color:#dc2626;max-width:320px;word-break:break-word">${c.obsAdmin || '<em style="color:#9ca3af">Sin observación</em>'}</td>
+                        <td style="padding:7px 12px;text-align:center"><button class="btn-sm btn-ver" onclick="abrirModalVer('${c.id}')" style="padding:3px 10px;font-size:0.75rem">👁</button></td>
+                      </tr>`).join('')}
+                  </tbody>
+                </table>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>`;
+      })()}
       ${totalSancionados > 0 ? `
       <div class="card">
         <div class="card-title">🚫 Sanciones disciplinarias activas (${totalSancionados})</div>
@@ -3815,14 +3856,14 @@ function renderTarjetaSolicitud(s, esPendiente) {
           </div>
           ${extraHtml}
           <div style="font-size:0.75rem;color:var(--gris2);margin-top:4px">Solicitado: ${s.fechaSolicitud}</div>
-          ${s.obsAdmin ? `<div style="font-size:0.8rem;color:var(--rojo);margin-top:4px;padding:6px 10px;background:#fff1f2;border-radius:6px">📝 ${s.obsAdmin}</div>` : ''}
+          ${s.obsAdmin ? `<div style="font-size:0.8rem;color:var(--rojo);margin-top:4px;padding:6px 10px;background:#fff1f2;border-radius:6px;border-left:3px solid #dc2626">📝 <strong>Observación:</strong> ${s.obsAdmin}</div>` : ''}
           ${s.driveFolder ? `<div style="margin-top:6px"><a href="${s.driveFolder}" target="_blank" style="font-size:0.78rem;color:var(--azul2);text-decoration:none">📁 Ver archivos en Drive</a></div>` : ''}
         </div>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <span style="padding:4px 10px;border-radius:20px;font-size:0.78rem;font-weight:700;background:${estadoColor.bg};color:${estadoColor.color}">
             ${estadoColor.icono} ${s.estado}
           </span>
-          ${esPendiente ? `
+          ${s.estado !== 'Aprobada' ? `
             <button class="btn-sm btn-aprobar" onclick="resolverSolicitud('${s.id}','Aprobada','${(s.tipoSolicitud||'Alta')}')">✅ Aprobar</button>
             <button class="btn-sm" style="background:#0ea5e9;color:white" onclick="abrirModalObservacion('${s.id}','${s.nombre.replace(/'/g,"\'")}','Observada')">📝 Observar</button>
             <button class="btn-sm btn-rechazar" onclick="abrirModalObservacion('${s.id}','${s.nombre.replace(/'/g,"\'")}','Rechazada')">❌ Rechazar</button>
@@ -4351,15 +4392,10 @@ async function renderFormularioPasivo(cnt) {
             }).join('')}
           </select>
         </div>
-        <div style="display:flex;gap:12px;flex-wrap:wrap">
-          <div class="form-group" style="flex:2;min-width:200px">
-            <label>Nombre confirmado</label>
-            <input id="pasivo-nombre" type="text" readonly style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit;background:var(--gris0);color:var(--gris3)">
-          </div>
-          <div class="form-group" style="flex:1;min-width:130px">
-            <label>DNI</label>
-            <input id="pasivo-dni" type="text" readonly style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit;background:var(--gris0);color:var(--gris3)">
-          </div>
+        <div class="form-group">
+          <label>Nombre confirmado</label>
+          <input id="pasivo-nombre" type="text" readonly style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit;background:var(--gris0);color:var(--gris3)">
+          <input id="pasivo-dni" type="hidden" value="">
         </div>
         <div style="display:flex;gap:12px;flex-wrap:wrap">
           <div class="form-group" style="flex:1;min-width:180px">
