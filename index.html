@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- PAGOS CDP — Frontend v5.38 — 2026-03-11 17:30 ARG -->
+<!-- PAGOS CDP — Frontend v5.39 — 2026-03-12 00:00 ARG -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -1862,10 +1862,12 @@ async function renderPanelHabilitacionesAdmin() {
     }
 
     const secciones = [
-      { label:'💰 Inhabilitados por pago',    color:'#ef4444', bg:'#fff1f2', total: totales.iPago,      lista: listas.iPago      },
-      { label:'🏥 Inhabilitados por estudio', color:'#f59e0b', bg:'#fefce8', total: totales.iEstudio,   lista: listas.iEstudio   },
-      { label:'🚫 Inhabilitados por sanción', color:'#8b5cf6', bg:'#f5f3ff', total: totales.iDeportiva, lista: listas.iDeportiva },
-      { label:'⚙️ Inhab. administrativa',     color:'#6b7280', bg:'#f9fafb', total: totales.iAdmin,     lista: listas.iAdmin     },
+      { label:'💰 Inhabilitados por pago',                           color:'#ef4444', bg:'#fff1f2', total: totales.iPago,             lista: listas.iPago             },
+      { label:'🏥 Inhabilitados por estudio',                        color:'#f59e0b', bg:'#fefce8', total: totales.iEstudio,           lista: listas.iEstudio          },
+      { label:'🚫 Inhabilitados por sanción',                        color:'#8b5cf6', bg:'#f5f3ff', total: totales.iDeportiva,         lista: listas.iDeportiva        },
+      { label:'⚙️ Inhab. administrativa',                            color:'#6b7280', bg:'#f9fafb', total: totales.iAdmin,             lista: listas.iAdmin            },
+      { label:'📅 Mes actual pago · meses anteriores pendientes',    color:'#0ea5e9', bg:'#f0f9ff', total: totales.mesOkDeudaAnterior, lista: listas.mesOkDeudaAnterior },
+      { label:'📋 Mes actual pago · estudios no aprobados',          color:'#f97316', bg:'#fff7ed', total: totales.mesOkSinEstudio,    lista: listas.mesOkSinEstudio   },
     ];
 
     placeholder.innerHTML = `
