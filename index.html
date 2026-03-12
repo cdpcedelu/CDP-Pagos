@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- PAGOS CDP — Frontend v5.37 — 2026-03-11 17:30 ARG -->
+<!-- PAGOS CDP — Frontend v5.38 — 2026-03-11 17:30 ARG -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -1827,8 +1827,94 @@ async function renderAdmin() {
           </table>
         </div>
       </div>` : ''}`;
+
+    // Panel habilitaciones global (carga asíncrona)
+    renderPanelHabilitacionesAdmin();
+
   } catch(e) {
     cnt.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div>Error: ${e.message}</div>`;
+  }
+}
+
+async function renderPanelHabilitacionesAdmin() {
+  const cnt = document.getElementById('main-content');
+  const placeholder = document.createElement('div');
+  placeholder.id = 'panel-hab-global';
+  placeholder.innerHTML = '<div class="card"><div class="loading" style="padding:20px"><div class="spinner"></div> Calculando habilitaciones...</div></div>';
+  cnt.appendChild(placeholder);
+
+  try {
+    const data = await api('getResumenHabilitaciones');
+    if (!data.ok) { placeholder.remove(); return; }
+
+    const { totales, listas } = data;
+    const total = totales.habilitados + totales.iPago + totales.iEstudio + totales.iDeportiva + totales.iAdmin;
+
+    function renderLista(arr, color) {
+      if (!arr.length) return '<em style="color:var(--gris2);font-size:0.82rem">Ninguno</em>';
+      const porEq = {};
+      arr.forEach(j => { if (!porEq[j.equipo]) porEq[j.equipo] = []; porEq[j.equipo].push(j.nombre); });
+      return Object.keys(porEq).sort().map(eq => `
+        <div style="margin-bottom:8px">
+          <div style="font-size:0.75rem;font-weight:700;color:var(--gris3);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:3px">${eq}</div>
+          ${porEq[eq].map(n => `<div style="font-size:0.83rem;padding:2px 0 2px 10px;border-left:3px solid ${color}">${n}</div>`).join('')}
+        </div>`).join('');
+    }
+
+    const secciones = [
+      { label:'💰 Inhabilitados por pago',    color:'#ef4444', bg:'#fff1f2', total: totales.iPago,      lista: listas.iPago      },
+      { label:'🏥 Inhabilitados por estudio', color:'#f59e0b', bg:'#fefce8', total: totales.iEstudio,   lista: listas.iEstudio   },
+      { label:'🚫 Inhabilitados por sanción', color:'#8b5cf6', bg:'#f5f3ff', total: totales.iDeportiva, lista: listas.iDeportiva },
+      { label:'⚙️ Inhab. administrativa',     color:'#6b7280', bg:'#f9fafb', total: totales.iAdmin,     lista: listas.iAdmin     },
+    ];
+
+    placeholder.innerHTML = `
+      <div class="card">
+        <div class="card-title">🟢 Estado de habilitaciones — todos los jugadores</div>
+
+        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px">
+          <div style="flex:1;min-width:110px;background:#dcfce7;border-radius:10px;padding:14px 16px;text-align:center">
+            <div style="font-size:1.6rem;font-weight:800;color:#15803d">${totales.habilitados}</div>
+            <div style="font-size:0.78rem;color:#166534;font-weight:600">✅ Habilitados</div>
+          </div>
+          <div style="flex:1;min-width:110px;background:#fff1f2;border-radius:10px;padding:14px 16px;text-align:center">
+            <div style="font-size:1.6rem;font-weight:800;color:#dc2626">${totales.iPago}</div>
+            <div style="font-size:0.78rem;color:#9f1239;font-weight:600">💰 Por pago</div>
+          </div>
+          <div style="flex:1;min-width:110px;background:#fefce8;border-radius:10px;padding:14px 16px;text-align:center">
+            <div style="font-size:1.6rem;font-weight:800;color:#b45309">${totales.iEstudio}</div>
+            <div style="font-size:0.78rem;color:#92400e;font-weight:600">🏥 Por estudio</div>
+          </div>
+          <div style="flex:1;min-width:110px;background:#f5f3ff;border-radius:10px;padding:14px 16px;text-align:center">
+            <div style="font-size:1.6rem;font-weight:800;color:#7c3aed">${totales.iDeportiva}</div>
+            <div style="font-size:0.78rem;color:#5b21b6;font-weight:600">🚫 Por sanción</div>
+          </div>
+          ${totales.iAdmin > 0 ? `<div style="flex:1;min-width:110px;background:#f9fafb;border-radius:10px;padding:14px 16px;text-align:center;border:1px solid var(--gris1)">
+            <div style="font-size:1.6rem;font-weight:800;color:#374151">${totales.iAdmin}</div>
+            <div style="font-size:0.78rem;color:#6b7280;font-weight:600">⚙️ Admin</div>
+          </div>` : ''}
+          <div style="flex:1;min-width:110px;background:#f0f9ff;border-radius:10px;padding:14px 16px;text-align:center">
+            <div style="font-size:1.6rem;font-weight:800;color:#0369a1">${total}</div>
+            <div style="font-size:0.78rem;color:#075985;font-weight:600">Total jugadores</div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:12px">
+          ${secciones.filter(s => s.total > 0).map(s => `
+            <details style="border:1.5px solid ${s.color}44;border-radius:10px;overflow:hidden">
+              <summary style="background:${s.bg};padding:12px 16px;cursor:pointer;font-weight:700;font-size:0.88rem;color:${s.color};display:flex;align-items:center;justify-content:space-between;list-style:none">
+                <span>${s.label}</span>
+                <span style="background:${s.color};color:white;border-radius:20px;padding:2px 10px;font-size:0.82rem">${s.total}</span>
+              </summary>
+              <div style="padding:14px 16px;background:white">
+                ${renderLista(s.lista, s.color)}
+              </div>
+            </details>`).join('')}
+        </div>
+      </div>`;
+  } catch(e) {
+    placeholder.remove();
+    console.warn('Panel hab global error:', e);
   }
 }
 
