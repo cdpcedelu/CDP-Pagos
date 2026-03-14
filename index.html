@@ -3891,98 +3891,96 @@ function abrirVentanaPlanilla(data, partido) {
 <title>Planilla — ${partido.local} vs ${partido.visitante}</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  /* FORZAR impresión de fondos en todos los navegadores */
   * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
     color-adjust: exact !important;
   }
 
-  body { font-family: Arial, sans-serif; font-size: 13px; color: #000; background: #fff; }
+  body { font-family: Arial, sans-serif; font-size: 15px; color: #000; background: #fff; }
 
-  .page { width: 210mm; height: auto; padding: 7mm 8mm 5mm; page-break-after: always; }
+  /* 1cm de margen en todos los lados */
+  .page { width: 210mm; height: auto; padding: 10mm; page-break-after: always; }
   .page:last-child { page-break-after: auto; }
 
   /* HEADER */
   .header-banda {
     background: #1a3a5c !important;
-    border-radius: 6px; padding: 10px 18px;
+    border-radius: 5px; padding: 9px 16px;
     display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 7px;
+    margin-bottom: 6px;
   }
-  .header-logo-area { display: flex; align-items: center; gap: 12px; }
-  .logo-img { width: 50px; height: 50px; object-fit: contain; }
+  .header-logo-area { display: flex; align-items: center; gap: 11px; }
+  .logo-img { width: 48px; height: 48px; object-fit: contain; }
   .header-club-text { color: #fff; line-height: 1.2; }
-  .nombre-club { font-size: 18px; font-weight: 900; color: #fff; }
+  .nombre-club { font-size: 19px; font-weight: 900; color: #fff; }
   .sub-club { font-size: 9px; color: rgba(255,255,255,0.8); text-transform: uppercase; letter-spacing: 1.5px; }
-  .header-torneo { text-align: center; color: #fff; font-size: 22px; font-weight: 900;
+  .header-torneo { text-align: center; color: #fff; font-size: 24px; font-weight: 900;
     text-transform: uppercase; letter-spacing: 3px; flex: 1; }
 
   /* INFO PARTIDO */
   .partido-info {
     border: 2px solid #000; border-radius: 5px;
-    padding: 8px 14px; display: flex; justify-content: space-between;
-    align-items: center; margin-bottom: 7px; gap: 8px;
+    padding: 7px 13px; display: flex; justify-content: space-between;
+    align-items: center; margin-bottom: 6px; gap: 8px;
     background: #f5f5f5 !important;
   }
   .pi-cat-fecha { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
-  .pi-label { font-size: 8px; text-transform: uppercase; color: #000;
-    letter-spacing: 0.8px; font-weight: 900; }
-  .pi-cat { font-size: 20px; font-weight: 900; color: #000; line-height: 1; }
+  .pi-label { font-size: 8px; text-transform: uppercase; color: #000; letter-spacing: 0.8px; font-weight: 900; }
+  .pi-cat { font-size: 21px; font-weight: 900; color: #000; line-height: 1; }
   .pi-fecha-badge {
     background: #000 !important; color: #fff !important;
-    font-size: 17px; font-weight: 900; padding: 3px 12px;
+    font-size: 18px; font-weight: 900; padding: 3px 12px;
     border-radius: 4px; letter-spacing: 1px; margin-top: 3px; display: inline-block;
   }
   .partido-equipos { text-align: center; flex: 1; line-height: 1.2; }
-  .eq-principal  { font-size: 24px; font-weight: 900; color: #000; display: block; }
+  .eq-principal  { font-size: 26px; font-weight: 900; color: #000; display: block; }
   .eq-vs         { font-size: 9px; color: #555; display: block; margin: 2px 0; text-transform: uppercase; letter-spacing: 1px; }
-  .eq-secundario { font-size: 16px; font-weight: 700; color: #000; display: block; }
+  .eq-secundario { font-size: 17px; font-weight: 700; color: #000; display: block; }
   .pi-datos { display: flex; gap: 18px; align-items: center; }
   .pi-dato-item { text-align: center; }
-  .pi-dato-val { font-size: 18px; font-weight: 900; color: #000; line-height: 1.1; }
+  .pi-dato-val { font-size: 20px; font-weight: 900; color: #000; line-height: 1.1; }
 
   /* TÍTULO EQUIPO */
   .equipo-titulo {
     background: #000 !important; color: #fff !important;
-    padding: 7px 13px; font-weight: 900; font-size: 15px;
+    padding: 7px 13px; font-weight: 900; font-size: 16px;
     border-radius: 4px 4px 0 0; text-transform: uppercase; letter-spacing: 1px;
   }
 
-  /* TABLA BASE */
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  /* TABLA */
+  table { width: 100%; border-collapse: collapse; font-size: 15px; }
   thead tr { background: #ddd !important; }
-  th { padding: 5px 6px; text-align: left; font-weight: 900; font-size: 9px;
+  th { padding: 5px 6px; text-align: left; font-weight: 900; font-size: 10px;
     text-transform: uppercase; letter-spacing: 0.5px; border: 1px solid #888; color: #000; }
   th.col-ch-h, th.col-firma-h {
     background: #555 !important; color: #fff !important;
     text-align: center; border: 1px solid #333 !important; }
-  td { padding: 5px 6px; border: 0.5px solid #bbb; vertical-align: middle; line-height: 1.3; }
+  td { padding: 4px 6px; border: 0.5px solid #bbb; vertical-align: middle; line-height: 1.3; }
 
   /* Columnas */
-  .col-nro    { width: 24px; text-align: center; font-size: 10px; font-weight: 700; }
-  .col-nombre { min-width: 148px; font-size: 14px; font-weight: 700; }
-  .col-estado { width: 118px; font-size: 12px; font-weight: 700; }
-  .col-ch     { width: 36px; text-align: center; }
-  .col-firma  { width: 74px; }
-  .col-gol    { width: 24px; text-align: center; }
-  .col-am     { width: 32px; text-align: center; }
-  .col-roja   { width: 24px; text-align: center; }
+  .col-nro    { width: 26px; text-align: center; font-size: 11px; font-weight: 700; }
+  .col-nombre { min-width: 148px; font-size: 16px; font-weight: 700; }
+  .col-estado { width: 122px; font-size: 13px; font-weight: 700; }
+  .col-ch     { width: 38px; text-align: center; }
+  .col-firma  { width: 76px; }
+  .col-gol    { width: 26px; text-align: center; }
+  .col-am     { width: 34px; text-align: center; }
+  .col-roja   { width: 26px; text-align: center; }
   .hab        { color: #000; font-weight: 700; }
 
   /* PIE */
   .pie { margin-top: 10px; border-top: 2px solid #000; padding-top: 9px;
     display: flex; justify-content: space-between; gap: 14px; }
   .pie-campo { flex: 1; }
-  .pie-label { font-size: 12px; text-transform: uppercase; color: #000;
+  .pie-label { font-size: 13px; text-transform: uppercase; color: #000;
     letter-spacing: 0.5px; display: block; margin-bottom: 22px; font-weight: 900; }
   .pie-linea { border-bottom: 1.5px solid #000; height: 1px; }
   .resultado-box { background: #eee !important; border: 2px solid #000;
     border-radius: 4px; padding: 6px 10px; text-align: center; flex: 1.1; }
-  .resultado-label { font-size: 9px; text-transform: uppercase; color: #000;
+  .resultado-label { font-size: 10px; text-transform: uppercase; color: #000;
     font-weight: 900; letter-spacing: 0.5px; display: block; margin-bottom: 5px; }
-  .resultado-marcador { font-size: 22px; font-weight: 900; color: #000; letter-spacing: 6px; }
+  .resultado-marcador { font-size: 24px; font-weight: 900; color: #000; letter-spacing: 6px; }
 
   /* TOOLBAR */
   .toolbar { position:fixed; top:0; left:0; right:0; background:#1a3a5c;
@@ -3998,7 +3996,7 @@ function abrirVentanaPlanilla(data, partido) {
   @media print {
     body { margin:0; padding-top:0; }
     .no-print { display:none !important; }
-    .page { padding:6mm 7mm 5mm; height:auto; }
+    .page { padding:10mm; height:auto; }
   }
 </style>
 </head>
