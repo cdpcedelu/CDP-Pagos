@@ -3763,15 +3763,16 @@ function abrirVentanaPlanilla(data, partido) {
           <td class="col-roja" style="background:${habBG};"></td>
         </tr>`;
       } else if (esColab) {
+        // Colab NO habilitado → negro igual que el resto de los inhabilitados
         return `
-        <tr style="background:${habBG};">
-          <td class="col-nombre" style="background:${habBG};color:#000;font-weight:700;">${j.nombre}${tagMas}${tagIC}${tagColab}</td>
-          <td class="col-estado hab" style="background:${habBG};color:#000;font-weight:700;">${estadoTxt}</td>
-          <td class="col-ch" style="background:${habBG};"></td>
-          <td class="col-firma" style="background:${habBG};"></td>
-          <td class="col-gol" style="background:${habBG};"></td>
-          <td class="col-am" style="background:${habBG};"></td>
-          <td class="col-roja" style="background:${habBG};"></td>
+        <tr style="background:${inhabBG};">
+          <td class="col-nombre" style="background:${inhabBG};color:#fff;font-weight:700;">✕✕ ${j.nombre}${tagMas}${tagIC}${tagColab}</td>
+          <td class="col-estado" style="background:${inhabBG};color:#fff;font-weight:700;">${estadoTxt}</td>
+          <td class="col-ch" style="background:#fff;"></td>
+          <td class="col-firma" style="background:#fff;"></td>
+          <td class="col-gol" style="background:#fff;"></td>
+          <td class="col-am" style="background:#fff;"></td>
+          <td class="col-roja" style="background:#fff;"></td>
         </tr>`;
       } else {
         return `
@@ -3862,7 +3863,9 @@ function abrirVentanaPlanilla(data, partido) {
         </div>
         <div class="resultado-box">
           <div class="resultado-label">Resultado Final</div>
+          <div class="resultado-equipo">${esLocal ? partido.local : partido.visitante}</div>
           <div class="resultado-marcador"></div>
+          <div class="resultado-equipo">${esLocal ? partido.visitante : partido.local}</div>
         </div>
       </div>
 
@@ -3983,10 +3986,11 @@ function abrirVentanaPlanilla(data, partido) {
     letter-spacing: 0.5px; display: block; margin-bottom: 20px; font-weight: 900; }
   .pie-linea { border-bottom: 1.5px solid #000; height: 1px; }
   .resultado-box { background: #eee !important; border: 2px solid #000;
-    border-radius: 4px; padding: 5px 8px; text-align: center; flex: 1.1; }
+    border-radius: 4px; padding: 6px 10px; text-align: center; flex: 1.6; }
   .resultado-label { font-size: 9px; text-transform: uppercase; color: #000;
-    font-weight: 900; letter-spacing: 0.5px; display: block; margin-bottom: 4px; }
-  .resultado-marcador { font-size: 22px; font-weight: 900; color: #000; letter-spacing: 6px; }
+    font-weight: 900; letter-spacing: 0.5px; display: block; margin-bottom: 3px; }
+  .resultado-equipo { font-size: 10px; font-weight: 900; color: #000; display: block; margin: 2px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .resultado-marcador { font-size: 20px; font-weight: 900; color: #000; letter-spacing: 6px; margin: 2px 0; }
 
   /* CAMBIOS */
   .cambios-box { margin-top: 8px; border: 1.5px solid #888; border-radius: 3px; }
