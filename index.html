@@ -3883,6 +3883,59 @@ function abrirVentanaPlanilla(data, partido) {
         </div>
       </div>
 
+    </div>
+
+    <div class="page reverso">
+      <div class="rev-banda"><span>INFORMACIÓN</span></div>
+      <div class="rev-info-box">
+        <p><strong>1 )</strong> -Los Integrantes de los equipos manifiestan no ser profesionales del deporte que practican, que carecen de aptitudes física idoneas, en deporte consecuencia <strong>ASUMEN ABSOLUTA, TOTAL Y EXCLUYENTEMENTE LA RESPONSABILIDAD POR CUALQUIER TIPO DE LESION QUE PUDIERE PADECER ANTES,DURANTE Y DESPUES DEL PARTIDO Y/O PRACTICA</strong> que realice de acuerdo con el fixtura organizado por la Comisión.</p>
+        <p style="margin-top:8px"><strong>2 )</strong> - Así mismo declaran que su participación es al los fines deportivos y/o recreativos, que reconocen que el torneo es SIN FINES DE LUCRO lo mismo que para uno de los partidos y en consecuencia hacen saber su voluntad de que en caso de sufrir lesión no reclamare suma alguna por gastos Médicos, Farmacológicos de tratamientos en general y/o particular a la Entidad Organizadora, ni a los integrantes de la Comisión Directiva, ni al resto de los asociados, ni indemnización alguna por cualquier tipo de daños.</p>
+      </div>
+
+      <div class="rev-banda"><span>OBSERVACIONES</span></div>
+      <div class="rev-obs-box"></div>
+
+      <div class="rev-banda"><span>VENTANAS DE CAMBIOS</span></div>
+      <table class="rev-table">
+        <thead>
+          <tr>
+            <th class="rev-th-num">N° VENTANA</th>
+            <th class="rev-th-main">INGRESA</th>
+            <th class="rev-th-main">SALE</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td class="rev-td-num">1</td><td class="rev-td-main"></td><td class="rev-td-main"></td></tr>
+          <tr><td class="rev-td-num">2</td><td class="rev-td-main"></td><td class="rev-td-main"></td></tr>
+          <tr><td class="rev-td-num">3</td><td class="rev-td-main"></td><td class="rev-td-main"></td></tr>
+          <tr><td class="rev-td-num">4</td><td class="rev-td-main"></td><td class="rev-td-main"></td></tr>
+          <tr><td class="rev-td-num">5</td><td class="rev-td-main"></td><td class="rev-td-main"></td></tr>
+        </tbody>
+      </table>
+
+      <div class="rev-banda rev-banda-firmas"><span>FIRMAS:</span></div>
+      <div class="rev-firmas-box">
+        <div class="rev-firma-label">CAPITANES:</div>
+        <div class="rev-firma-space"></div>
+      </div>
+      <div class="rev-arbitro-box">
+        <div class="rev-arbitro-col">
+          <div class="rev-firma-label">ARBITRO:</div>
+          <div class="rev-arbitro-linea"></div>
+        </div>
+        <div class="rev-arbitro-col">
+          <div class="rev-firma-label">ASISTENTES:</div>
+          <div class="rev-arbitro-linea"></div>
+        </div>
+      </div>
+
+      <div class="rev-logo-area">
+        <img src="${LOGO}" style="width:44px;height:44px;object-fit:contain;">
+        <div>
+          <div style="font-size:9px;font-weight:900;color:#1a3a5c;letter-spacing:0.5px;">CLUB DE PROFESIONALES</div>
+          <div style="font-size:7px;color:#555;text-transform:uppercase;letter-spacing:1px;">Concepción del Uruguay</div>
+        </div>
+      </div>
     </div>`;
   }
 
@@ -3990,6 +4043,36 @@ function abrirVentanaPlanilla(data, partido) {
   .cambios-cuerpo { padding: 5px 8px; display: flex; flex-direction: column; gap: 4px; }
   .cambios-fila { display: flex; gap: 4px; }
   .cambios-casillero { width: 22px; height: 18px; border: 1px solid #888; background: #fff !important; }
+
+  /* REVERSO */
+  .reverso { font-family: Arial, sans-serif; }
+  .rev-banda { background: #b0b8c8 !important; text-align: center; padding: 5px 0;
+    font-size: 13px; font-weight: 900; color: #000; text-transform: uppercase;
+    letter-spacing: 1px; border: 1px solid #888; margin-bottom: 0; }
+  .rev-banda-firmas { margin-top: 0; }
+  .rev-info-box { border: 1px solid #888; border-top: none; padding: 10px 14px;
+    font-size: 11px; line-height: 1.55; color: #000; margin-bottom: 6px;
+    text-align: justify; }
+  .rev-obs-box { border: 1px solid #888; border-top: none; height: 90px;
+    margin-bottom: 6px; }
+  .rev-table { width: 100%; border-collapse: collapse; margin-bottom: 0; font-size: 12px; }
+  .rev-th-num { width: 80px; padding: 4px 8px; border: 1px solid #888; font-weight: 900;
+    font-size: 10px; text-transform: uppercase; background: #fff !important; }
+  .rev-th-main { padding: 4px 8px; border: 1px solid #888; font-weight: 900;
+    font-size: 10px; text-transform: uppercase; background: #fff !important; }
+  .rev-td-num { width: 80px; text-align: center; padding: 10px 8px;
+    border: 1px solid #888; font-weight: 900; font-size: 13px; }
+  .rev-td-main { padding: 10px 8px; border: 1px solid #888; }
+  .rev-firmas-box { border: 1px solid #888; border-top: none; padding: 8px 10px 24px; }
+  .rev-firma-label { font-size: 11px; font-weight: 900; color: #000; margin-bottom: 2px; }
+  .rev-firma-space { height: 28px; }
+  .rev-arbitro-box { border: 1px solid #888; border-top: none; display: flex;
+    gap: 0; padding: 8px 10px 10px; }
+  .rev-arbitro-col { flex: 1; }
+  .rev-arbitro-col:first-child { border-right: 1px solid #888; padding-right: 10px; margin-right: 10px; }
+  .rev-arbitro-linea { border-bottom: 1px solid #000; margin-top: 20px; }
+  .rev-logo-area { display: flex; align-items: center; gap: 8px; justify-content: center;
+    margin-top: 18px; }
 
   /* TOOLBAR */
   .toolbar { position:fixed; top:0; left:0; right:0; background:#1a3a5c;
