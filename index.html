@@ -3867,11 +3867,11 @@ function abrirVentanaPlanilla(data, partido) {
 
       <div class="pie" style="margin-top:10px">
         <div class="pie-campo">
-          <div class="pie-label">Firma ${partido.local}</div>
+          <div class="pie-label">Firma ${esLocal ? partido.local : partido.visitante}</div>
           <div class="pie-linea"></div>
         </div>
         <div class="pie-campo">
-          <div class="pie-label">Firma ${partido.visitante}</div>
+          <div class="pie-label">Firma ${esLocal ? partido.visitante : partido.local}</div>
           <div class="pie-linea"></div>
         </div>
       </div>
