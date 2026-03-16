@@ -3754,7 +3754,6 @@ function abrirVentanaPlanilla(data, partido) {
       if (hab) {
         return `
         <tr style="background:${habBG};">
-          <td class="col-nro" style="background:${habBG};">${String(i+1).padStart(2,'0')}</td>
           <td class="col-nombre" style="background:${habBG};color:#000;font-weight:700;">${j.nombre}${tagMas}${tagIC}${tagColab}</td>
           <td class="col-estado hab" style="background:${habBG};color:#000;font-weight:700;">${estadoTxt}</td>
           <td class="col-ch" style="background:${habBG};"></td>
@@ -3765,20 +3764,18 @@ function abrirVentanaPlanilla(data, partido) {
         </tr>`;
       } else if (esColab) {
         return `
-        <tr style="background:${colabBG};">
-          <td class="col-nro" style="background:${colabBG};color:#fff;">${String(i+1).padStart(2,'0')}</td>
-          <td class="col-nombre" style="background:${colabBG};color:#fff;font-weight:700;">${j.nombre}${tagMas}${tagIC}${tagColab}</td>
-          <td class="col-estado" style="background:${colabBG};color:#fff;font-weight:700;">${estadoTxt}</td>
-          <td class="col-ch" style="background:${colabBG};"></td>
-          <td class="col-firma" style="background:${colabBG};"></td>
-          <td class="col-gol" style="background:${colabBG};"></td>
-          <td class="col-am" style="background:${colabBG};"></td>
-          <td class="col-roja" style="background:${colabBG};"></td>
+        <tr style="background:${habBG};">
+          <td class="col-nombre" style="background:${habBG};color:#000;font-weight:700;">${j.nombre}${tagMas}${tagIC}${tagColab}</td>
+          <td class="col-estado hab" style="background:${habBG};color:#000;font-weight:700;">${estadoTxt}</td>
+          <td class="col-ch" style="background:${habBG};"></td>
+          <td class="col-firma" style="background:${habBG};"></td>
+          <td class="col-gol" style="background:${habBG};"></td>
+          <td class="col-am" style="background:${habBG};"></td>
+          <td class="col-roja" style="background:${habBG};"></td>
         </tr>`;
       } else {
         return `
         <tr style="background:${inhabBG};">
-          <td class="col-nro" style="background:${inhabBG};color:#fff;">${String(i+1).padStart(2,'0')}</td>
           <td class="col-nombre" style="background:${inhabBG};color:#fff;font-weight:700;">✕✕ ${j.nombre}${tagMas}${tagIC}${tagColab}</td>
           <td class="col-estado" style="background:${inhabBG};color:#fff;font-weight:700;">${estadoTxt}</td>
           <td class="col-ch" style="background:#fff;"></td>
@@ -3841,7 +3838,6 @@ function abrirVentanaPlanilla(data, partido) {
       <table>
         <thead>
           <tr>
-            <th class="col-nro">Nro</th>
             <th class="col-nombre">Apellido y Nombres</th>
             <th class="col-estado">Estado</th>
             <th class="col-ch-h">Camiseta</th>
@@ -3866,7 +3862,7 @@ function abrirVentanaPlanilla(data, partido) {
         </div>
         <div class="resultado-box">
           <div class="resultado-label">Resultado Final</div>
-          <div class="resultado-marcador">___ — ___</div>
+          <div class="resultado-marcador"></div>
         </div>
       </div>
 
@@ -3878,6 +3874,18 @@ function abrirVentanaPlanilla(data, partido) {
         <div class="pie-campo">
           <div class="pie-label">Firma ${partido.visitante}</div>
           <div class="pie-linea"></div>
+        </div>
+      </div>
+
+      <div class="cambios-box">
+        <div class="cambios-titulo">Cambios</div>
+        <div class="cambios-cuerpo">
+          <div class="cambios-fila">
+            <div class="cambios-casillero"></div><div class="cambios-casillero"></div><div class="cambios-casillero"></div><div class="cambios-casillero"></div><div class="cambios-casillero"></div>
+          </div>
+          <div class="cambios-fila">
+            <div class="cambios-casillero"></div><div class="cambios-casillero"></div><div class="cambios-casillero"></div><div class="cambios-casillero"></div><div class="cambios-casillero"></div>
+          </div>
         </div>
       </div>
 
@@ -3958,11 +3966,10 @@ function abrirVentanaPlanilla(data, partido) {
   td { padding: 4px 6px; border: 0.5px solid #bbb; vertical-align: middle; line-height: 1.25; }
 
   /* Columnas con anchos razonables — nombres toman el espacio que necesitan */
-  .col-nro    { width: 28px; text-align: center; font-size: 10px; font-weight: 700; }
   .col-nombre { font-size: 15px; font-weight: 700; }
   .col-estado { width: 120px; font-size: 12px; font-weight: 700; }
   .col-ch     { width: 44px; text-align: center; }
-  .col-firma  { width: 60px; }
+  .col-firma  { width: 88px; }
   .col-gol    { width: 26px; text-align: center; }
   .col-am     { width: 34px; text-align: center; }
   .col-roja   { width: 26px; text-align: center; }
@@ -3980,6 +3987,14 @@ function abrirVentanaPlanilla(data, partido) {
   .resultado-label { font-size: 9px; text-transform: uppercase; color: #000;
     font-weight: 900; letter-spacing: 0.5px; display: block; margin-bottom: 4px; }
   .resultado-marcador { font-size: 22px; font-weight: 900; color: #000; letter-spacing: 6px; }
+
+  /* CAMBIOS */
+  .cambios-box { margin-top: 8px; border: 1.5px solid #888; border-radius: 3px; }
+  .cambios-titulo { background: #ddd !important; padding: 3px 8px; font-size: 9px;
+    font-weight: 900; text-transform: uppercase; letter-spacing: 1px; color: #000; }
+  .cambios-cuerpo { padding: 5px 8px; display: flex; flex-direction: column; gap: 4px; }
+  .cambios-fila { display: flex; gap: 4px; }
+  .cambios-casillero { width: 22px; height: 18px; border: 1px solid #888; background: #fff !important; }
 
   /* TOOLBAR */
   .toolbar { position:fixed; top:0; left:0; right:0; background:#1a3a5c;
