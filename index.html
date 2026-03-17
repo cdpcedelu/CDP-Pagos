@@ -3618,13 +3618,16 @@ async function renderPlanillas() {
       <div class="card">
         <div class="card-title">📄 Planillas de Partido</div>
         <p style="font-size:0.82rem;color:var(--gris3);margin-bottom:16px">
-          Seleccioná un partido para generar la planilla con el estado de habilitación de cada jugador.
+          Seleccioná los partidos y generá todas las planillas juntas para imprimir.
         </p>
-        <div class="fixture-filtros">
+        <div class="fixture-filtros" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
           <select onchange="filtrarFixture(this.value)" id="filtro-fecha-nro">
             <option value="">Todas las fechas</option>
             ${Object.keys(grupos).map(g => `<option value="${g}">${g}</option>`).join('')}
           </select>
+          <button class="btn-sm btn-ver" onclick="seleccionarTodas(true)">☑ Todas</button>
+          <button class="btn-sm btn-ver" onclick="seleccionarTodas(false)">☐ Ninguna</button>
+          <button class="btn-sm btn-cargar" id="btn-imprimir-todas" onclick="imprimirSeleccionadas()" style="margin-left:auto">🖨️ Imprimir seleccionadas</button>
         </div>
         <div id="fixture-lista">`;
 
@@ -3634,24 +3637,28 @@ async function renderPlanillas() {
       pts.forEach(p => {
         const catClass = (p.categoria||'').toLowerCase().includes('senior') ? 'cat-senior' : 'cat-libres';
         const pJson = JSON.stringify(p).replace(/"/g,'&quot;');
+        const cbId = `cb-${p.local.replace(/\s/g,'')}-${p.visitante.replace(/\s/g,'')}`;
         html += `
           <div class="partido-card">
-            <div class="partido-info">
-              <div class="partido-titulo">
-                ${p.local} <span style="color:var(--gris2);font-weight:400">vs</span> ${p.visitante}
-                ${p.categoria ? `<span class="partido-cat ${catClass}">${p.categoria}</span>` : ''}
+            <label style="display:flex;align-items:center;gap:10px;flex:1;cursor:pointer">
+              <input type="checkbox" id="${cbId}" class="planilla-check" data-partido="${pJson}" style="width:18px;height:18px;cursor:pointer;accent-color:var(--azul2)">
+              <div class="partido-info" style="flex:1">
+                <div class="partido-titulo">
+                  ${p.local} <span style="color:var(--gris2);font-weight:400">vs</span> ${p.visitante}
+                  ${p.categoria ? `<span class="partido-cat ${catClass}">${p.categoria}</span>` : ''}
+                </div>
+                ${p.resultado ? `<div style="font-size:0.85rem;font-weight:700;color:#16a34a;margin:2px 0 4px">⚽ Resultado: ${p.resultado}</div>` : ''}
+                <div class="partido-detalle">
+                  ${p.fecha ? `<span>📅 ${p.fecha}</span>` : ''}
+                  ${p.hora  ? `<span>🕐 ${p.hora}</span>` : ''}
+                  ${p.cancha? `<span>🟢 Cancha ${p.cancha}</span>` : ''}
+                  ${p.obs   ? `<span style="color:var(--amarillo)">⚠️ ${p.obs}</span>` : ''}
+                </div>
               </div>
-              ${p.resultado ? `<div style="font-size:0.85rem;font-weight:700;color:#16a34a;margin:2px 0 4px">⚽ Resultado: ${p.resultado}</div>` : ''}
-              <div class="partido-detalle">
-                ${p.fecha ? `<span>📅 ${p.fecha}</span>` : ''}
-                ${p.hora  ? `<span>🕐 ${p.hora}</span>` : ''}
-                ${p.cancha? `<span>🟢 Cancha ${p.cancha}</span>` : ''}
-                ${p.obs   ? `<span style="color:var(--amarillo)">⚠️ ${p.obs}</span>` : ''}
-              </div>
-            </div>
+            </label>
             <button class="btn-planilla" onclick="generarPlanilla(${pJson.replace(/&quot;/g,"'")})" 
               id="btn-plan-${p.local.replace(/\s/g,'')}-${p.visitante.replace(/\s/g,'')}">
-              📄 Ver Planilla
+              📄 Ver
             </button>
           </div>`;
       });
@@ -3681,6 +3688,92 @@ function filtrarFixture(fechaNro) {
   document.querySelectorAll('.fixture-grupo').forEach(g => {
     g.style.display = (!fechaNro || g.dataset.fecha === fechaNro) ? '' : 'none';
   });
+}
+
+function seleccionarTodas(checked) {
+  document.querySelectorAll('.planilla-check').forEach(cb => {
+    // solo las visibles
+    const card = cb.closest('.fixture-grupo');
+    if (!card || card.style.display !== 'none') cb.checked = checked;
+  });
+}
+
+async function imprimirSeleccionadas() {
+  const checks = [...document.querySelectorAll('.planilla-check:checked')];
+  if (!checks.length) { showToast('Seleccioná al menos un partido', 'error'); return; }
+
+  const btn = document.getElementById('btn-imprimir-todas');
+  btn.disabled = true; btn.textContent = '⏳ Cargando...';
+
+  try {
+    // Traer datos de todas las planillas en paralelo
+    const resultados = await Promise.all(checks.map(cb => {
+      const partido = JSON.parse(cb.dataset.partido);
+      return api('getPlanillaData', {
+        local:     partido.local,
+        visitante: partido.visitante,
+        fechaNro:  partido.fechaNro,
+        torneo:    partido.torneo,
+        categoria: partido.categoria,
+        fecha:     partido.fecha,
+        hora:      partido.hora,
+        cancha:    partido.cancha,
+      }).then(data => ({ data, partido }));
+    }));
+
+    const errores = resultados.filter(r => !r.data.ok);
+    if (errores.length) {
+      showToast('Error en: ' + errores.map(e => e.partido.local + ' vs ' + e.partido.visitante).join(', '), 'error');
+      btn.disabled = false; btn.textContent = '🖨️ Imprimir seleccionadas';
+      return;
+    }
+
+    // Usar el caché de CSS/paginaEquipo si está disponible (se llena al abrir una planilla individual)
+    // Si no está disponible, cargar la primera planilla para obtenerlo
+    if (!window._planillaCSSCache || !window._paginaEquipoFn) {
+      await generarPlanilla(resultados[0].partido);
+      await new Promise(r => setTimeout(r, 800)); // esperar que se cachee
+    }
+
+    if (!window._planillaCSSCache || !window._paginaEquipoFn) {
+      showToast('Primero abrí una planilla individual para inicializar el sistema.', 'error');
+      btn.disabled = false; btn.textContent = '🖨️ Imprimir seleccionadas';
+      return;
+    }
+
+    const paginaFn = window._paginaEquipoFn;
+    const paginasHtml = resultados.map(({ data, partido }) => {
+      const { jugadoresLocal, jugadoresVisitante } = data;
+      return paginaFn(partido.local, jugadoresLocal, true) +
+             paginaFn(partido.visitante, jugadoresVisitante, false);
+    }).join('');
+
+    const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Planillas — Impresión masiva</title>
+<style>${window._planillaCSSCache}</style>
+</head>
+<body>
+<div class="toolbar no-print">
+  <button class="btn-imprimir" onclick="window.print()">&#128438; Imprimir todo</button>
+  <span class="toolbar-title">${checks.length} partido(s) — Impresión masiva</span>
+  <button class="btn-cerrar" onclick="window.close()">&#10005; Cerrar</button>
+</div>
+${paginasHtml}
+</body>
+</html>`;
+
+    const win = window.open('', '_blank', 'width=900,height=700,scrollbars=yes');
+    if (!win) { showToast('El navegador bloqueó la ventana emergente. Permitila.', 'error'); return; }
+    win.document.write(html);
+    win.document.close();
+
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  }
+  btn.disabled = false; btn.textContent = '🖨️ Imprimir seleccionadas';
 }
 
 async function generarPlanilla(partido) {
@@ -4110,6 +4203,10 @@ ${paginaEquipo(partido.visitante, jugadoresVisitante, false)}
   }
   win.document.write(html);
   win.document.close();
+
+  // Guardar referencia al CSS y paginaEquipo para impresión masiva
+  window._planillaCSSCache = html.match(/<style>([\s\S]*?)<\/style>/)?.[1] || '';
+  window._paginaEquipoFn  = paginaEquipo;
 }
 
 // ══════════════════════════════════════════════════════════════════
