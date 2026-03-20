@@ -1901,6 +1901,9 @@ async function renderAdmin() {
 
 async function renderModificacionesLista() {
   const cnt = document.getElementById('main-content');
+  // Evitar duplicados
+  const existing = document.getElementById('panel-mod-lista');
+  if (existing) existing.remove();
   const placeholder = document.createElement('div');
   placeholder.id = 'panel-mod-lista';
   placeholder.innerHTML = '<div class="card"><div class="loading" style="padding:10px"><div class="spinner"></div> Cargando modificaciones...</div></div>';
