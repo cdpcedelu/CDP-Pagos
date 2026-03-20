@@ -1891,9 +1891,54 @@ async function renderAdmin() {
     // Panel habilitaciones global (carga asíncrona)
     renderPanelHabilitacionesAdmin();
 
+    // Panel modificaciones de lista Libres (carga asíncrona)
+    renderModificacionesLista();
+
   } catch(e) {
     cnt.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div>Error: ${e.message}</div>`;
   }
+}
+
+async function renderModificacionesLista() {
+  const cnt = document.getElementById('main-content');
+  const placeholder = document.createElement('div');
+  placeholder.id = 'panel-mod-lista';
+  placeholder.innerHTML = '<div class="card"><div class="loading" style="padding:10px"><div class="spinner"></div> Cargando modificaciones...</div></div>';
+  cnt.appendChild(placeholder);
+  try {
+    const data = await api('getModificacionesLista');
+    if (!data.ok) { placeholder.remove(); return; }
+    const items = (data.items || []).filter(e => e.disponibles !== undefined);
+    if (!items.length) { placeholder.remove(); return; }
+    let html = `<div class="card">
+      <div class="card-title">📋 Modificaciones de Lista — Libres</div>
+      <div class="tabla-wrapper"><table>
+        <thead><tr><th>Equipo</th><th style="text-align:center">Usadas</th><th style="text-align:center">Disponibles</th><th style="text-align:center">Ajustar</th></tr></thead>
+        <tbody>`;
+    items.forEach(e => {
+      const color = e.disponibles === 0 ? '#dc2626' : e.disponibles === 1 ? '#d97706' : '#16a34a';
+      const bg    = e.disponibles === 0 ? '#fef2f2' : e.disponibles === 1 ? '#fefce8' : '#dcfce7';
+      html += `<tr>
+        <td class="jugador-nombre">${e.nombre}</td>
+        <td style="text-align:center;font-weight:700">${e.usadas}/${e.max}</td>
+        <td style="text-align:center"><span style="font-weight:900;font-size:1rem;padding:2px 12px;border-radius:12px;background:${bg};color:${color}">${e.disponibles}/${e.max}</span></td>
+        <td style="text-align:center;display:flex;gap:6px;justify-content:center;padding:6px">
+          <button class="btn-sm btn-rechazar" onclick="ajustarModLista('${e.equipoId}',1)" title="Restar">−</button>
+          <button class="btn-sm btn-aprobar" onclick="ajustarModLista('${e.equipoId}',-1)" title="Sumar">+</button>
+        </td>
+      </tr>`;
+    });
+    html += `</tbody></table></div></div>`;
+    placeholder.innerHTML = html;
+  } catch(e) { placeholder.remove(); }
+}
+
+async function ajustarModLista(equipoId, delta) {
+  try {
+    const data = await api('setModificacionesLista', { equipoId, delta: String(delta) });
+    if (data.ok) renderModificacionesLista();
+    else showToast(data.msg, 'error');
+  } catch(e) { showToast(e.message, 'error'); }
 }
 
 async function renderPanelHabilitacionesAdmin() {
