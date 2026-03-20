@@ -4624,9 +4624,26 @@ async function renderGestionDelegado(subvista = 'menu') {
   const cnt = document.getElementById('main-content');
   
   if (subvista === 'menu') {
+    // Cargar modificaciones de lista si es equipo Libres
+    const esLibres = APP.equipo && (APP.equipo.cat||'').toLowerCase().includes('libre');
+    let modBadge = '';
+    if (esLibres) {
+      try {
+        const modData = await api('getModificacionesListaAll');
+        if (modData.ok) {
+          const item = (modData.items||[]).find(e => e.equipoId === APP.equipo.id || e.nombre === APP.equipo.nombre);
+          if (item) {
+            const color = item.disponibles === 0 ? '#dc2626' : item.disponibles === 1 ? '#d97706' : '#16a34a';
+            const bg    = item.disponibles === 0 ? '#fef2f2' : item.disponibles === 1 ? '#fefce8' : '#dcfce7';
+            modBadge = `<span style="font-size:0.78rem;font-weight:700;padding:3px 10px;border-radius:12px;background:${bg};color:${color};margin-left:10px">📋 Mod. Lista: ${item.disponibles}/${item.max}</span>`;
+          }
+        }
+      } catch(e) {}
+    }
+
     cnt.innerHTML = `
       <div class="card">
-        <div class="card-title">⚙️ Gestión — ${APP.equipo.nombre}</div>
+        <div class="card-title">⚙️ Gestión — ${APP.equipo.nombre}${modBadge}</div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:4px">
           
           <div class="gestion-card" onclick="renderGestionDelegado('gestion-jugadores')">
