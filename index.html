@@ -1906,7 +1906,7 @@ async function renderModificacionesLista() {
   placeholder.innerHTML = '<div class="card"><div class="loading" style="padding:10px"><div class="spinner"></div> Cargando modificaciones...</div></div>';
   cnt.appendChild(placeholder);
   try {
-    const data = await api('getModificacionesLista');
+    const data = await api('getModificacionesListaAll');
     if (!data.ok) { placeholder.remove(); return; }
     const items = (data.items || []).filter(e => e.disponibles !== undefined);
     if (!items.length) { placeholder.remove(); return; }
