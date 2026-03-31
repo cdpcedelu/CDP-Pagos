@@ -4613,6 +4613,20 @@ function renderTarjetaSolicitud(s, esPendiente) {
               </div>`;
             })() : ''}
           ${s.driveFolder ? `<div style="margin-top:6px"><a href="${s.driveFolder}" target="_blank" style="font-size:0.78rem;color:var(--azul2);text-decoration:none">📁 Ver archivos en Drive</a></div>` : ''}
+          ${(() => {
+            // Mostrar historial de respuestas del delegado si existe
+            if (!extra.historialRespuestas || !extra.historialRespuestas.length) return '';
+            return `<div style="margin-top:10px;padding:10px 12px;background:#f0fdf4;border:1px solid #86efac;border-radius:8px">
+              <div style="font-size:0.75rem;font-weight:700;color:#15803d;margin-bottom:6px">Respuestas del delegado:</div>
+              ${extra.historialRespuestas.map((resp, idx) => `
+                <div style="padding:8px 10px;background:#fff;border-radius:6px;margin-bottom:6px;border-left:3px solid #22c55e">
+                  <div style="font-size:0.72rem;color:var(--gris3);margin-bottom:3px">${resp.fecha || ''}</div>
+                  <div style="font-size:0.85rem;color:#1a1a1a;line-height:1.4">${resp.texto || ''}</div>
+                  ${resp.carpetaUrl ? `<a href="${resp.carpetaUrl}" target="_blank" style="font-size:0.75rem;color:var(--azul2);text-decoration:none;display:inline-block;margin-top:4px">Ver archivos adjuntos</a>` : ''}
+                </div>
+              `).join('')}
+            </div>`;
+          })()}
         </div>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <span style="padding:4px 10px;border-radius:20px;font-size:0.78rem;font-weight:700;background:${estadoColor.bg};color:${estadoColor.color}">
