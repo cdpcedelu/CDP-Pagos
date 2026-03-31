@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- PAGOS CDP — Frontend v5.41 — 2026-03-13 00:00 ARG (fix login) -->
+<!-- PAGOS CDP — Frontend v5.42 — 2026-03-31 15:30 ARG (+ pestaña Estadísticas admin) -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -1424,6 +1424,7 @@ function iniciarApp() {
   } else {
     tabs.innerHTML = `
       <button class="nav-tab active" onclick="navTo('panel-admin', this)" id="tab-panel-admin">📊 Panel</button>
+      <button class="nav-tab" onclick="navTo('estadisticas-admin', this)">📈 Estadísticas</button>
       <button class="nav-tab" onclick="navTo('todos-comprobantes', this)">📋 Comprobantes</button>
       <button class="nav-tab" onclick="navTo('por-equipo', this)">⚽ Por Equipo</button>
       <button class="nav-tab" onclick="navTo('jugadores-admin', this)">👥 Jugadores</button>
@@ -1466,6 +1467,8 @@ function navTo(vista, btn) {
     renderSaludAdmin();
   } else if (vista === 'configuracion') {
     renderConfiguracion();
+  } else if (vista === 'estadisticas-admin') {
+    renderEstadisticasAdmin();
   }
 }
 
@@ -1725,6 +1728,216 @@ function renderHistorial(cnt) {
           </table>
         </div>`}
     </div>`;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// VISTA ESTADÍSTICAS ADMIN
+// ══════════════════════════════════════════════════════════════════
+async function renderEstadisticasAdmin() {
+  const cnt = document.getElementById('main-content');
+  cnt.innerHTML = '<div class="loading"><div class="spinner"></div> Calculando estadísticas...</div>';
+
+  try {
+    const data = await api('getEstadisticasClub');
+    if (!data.ok) throw new Error(data.msg || 'Error al cargar estadísticas');
+
+    const {
+      cuotas,
+      jugadores,
+      equipos
+    } = data;
+
+    cnt.innerHTML = `
+      <style>
+        .stats-section { margin-bottom: 28px; }
+        .stats-section-title {
+          font-size: 1.1rem; font-weight: 700; color: var(--azul);
+          margin-bottom: 16px; display: flex; align-items: center; gap: 10px;
+          padding-bottom: 8px; border-bottom: 2px solid var(--gris1);
+        }
+        .cuotas-grid {
+          display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+          gap: 14px; margin-bottom: 20px;
+        }
+        .cuota-card {
+          background: var(--blanco); border-radius: var(--radio);
+          padding: 18px; box-shadow: var(--sombra);
+          border-left: 4px solid var(--azul2);
+        }
+        .cuota-card.ic { border-left-color: #8b5cf6; }
+        .cuota-card.col { border-left-color: #f59e0b; }
+        .cuota-card.pasivo { border-left-color: var(--gris2); }
+        .cuota-tipo { font-size: 0.78rem; color: var(--gris3); text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 4px; }
+        .cuota-cant { font-size: 1.8rem; font-weight: 700; color: var(--azul); line-height: 1.1; }
+        .cuota-monto { font-size: 0.85rem; color: var(--gris3); margin-top: 4px; }
+        .cuota-subtotal { font-size: 1rem; font-weight: 700; color: var(--verde); margin-top: 8px; }
+        .total-card {
+          background: linear-gradient(135deg, var(--azul) 0%, #0f2744 100%);
+          color: var(--blanco); border-radius: var(--radio);
+          padding: 24px; text-align: center; box-shadow: var(--sombra2);
+        }
+        .total-label { font-size: 0.85rem; opacity: 0.8; margin-bottom: 4px; }
+        .total-monto { font-size: 2.2rem; font-weight: 700; }
+        .total-nota { font-size: 0.75rem; opacity: 0.6; margin-top: 8px; }
+        .datos-grid {
+          display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+          gap: 12px;
+        }
+        .dato-card {
+          background: var(--blanco); border-radius: var(--radio-sm);
+          padding: 16px; text-align: center; box-shadow: var(--sombra);
+        }
+        .dato-num { font-size: 1.6rem; font-weight: 700; color: var(--azul2); }
+        .dato-label { font-size: 0.75rem; color: var(--gris3); margin-top: 4px; }
+        .categoria-dist {
+          display: flex; gap: 8px; margin-top: 16px;
+        }
+        .cat-bar {
+          height: 10px; border-radius: 5px;
+          transition: width 0.3s;
+        }
+        .cat-bar.libres { background: var(--azul2); }
+        .cat-bar.senior { background: var(--verde); }
+        .cat-legend {
+          display: flex; gap: 20px; margin-top: 10px; font-size: 0.8rem;
+        }
+        .cat-legend-item { display: flex; align-items: center; gap: 6px; }
+        .cat-legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+      </style>
+
+      <div class="stats-section">
+        <div class="stats-section-title">💰 Recaudación Esperada — Cuotas Mensuales</div>
+        <div class="cuotas-grid">
+          <div class="cuota-card">
+            <div class="cuota-tipo">Activo sin IC</div>
+            <div class="cuota-cant">${cuotas.activoSinIC.cantidad}</div>
+            <div class="cuota-monto">$40.000 c/u</div>
+            <div class="cuota-subtotal">$${cuotas.activoSinIC.subtotal.toLocaleString('es-AR')}</div>
+          </div>
+          <div class="cuota-card ic">
+            <div class="cuota-tipo">Activo con IC</div>
+            <div class="cuota-cant">${cuotas.activoConIC.cantidad}</div>
+            <div class="cuota-monto">$52.000 c/u (únicos por DNI)</div>
+            <div class="cuota-subtotal">$${cuotas.activoConIC.subtotal.toLocaleString('es-AR')}</div>
+          </div>
+          <div class="cuota-card col">
+            <div class="cuota-tipo">Colaborador</div>
+            <div class="cuota-cant">${cuotas.colaborador.cantidad}</div>
+            <div class="cuota-monto">$16.000 c/u</div>
+            <div class="cuota-subtotal">$${cuotas.colaborador.subtotal.toLocaleString('es-AR')}</div>
+          </div>
+          <div class="cuota-card pasivo">
+            <div class="cuota-tipo">Pasivo</div>
+            <div class="cuota-cant">${cuotas.pasivo.cantidad}</div>
+            <div class="cuota-monto">$16.000 c/u</div>
+            <div class="cuota-subtotal">$${cuotas.pasivo.subtotal.toLocaleString('es-AR')}</div>
+          </div>
+        </div>
+        <div class="total-card">
+          <div class="total-label">Total Recaudación Esperada</div>
+          <div class="total-monto">$${cuotas.totalRecaudacion.toLocaleString('es-AR')}</div>
+          <div class="total-nota">Calculado sobre ${cuotas.totalSocios} socios que pagan cuota (excluyendo duplicados IC)</div>
+        </div>
+      </div>
+
+      <div class="stats-section">
+        <div class="stats-section-title">📊 Datos del Club</div>
+        <div class="datos-grid">
+          <div class="dato-card">
+            <div class="dato-num">${jugadores.totalRegistros}</div>
+            <div class="dato-label">Registros totales</div>
+          </div>
+          <div class="dato-card">
+            <div class="dato-num">${jugadores.dnisUnicos}</div>
+            <div class="dato-label">Jugadores únicos (DNI)</div>
+          </div>
+          <div class="dato-card">
+            <div class="dato-num">${jugadores.porCategoria.libres}</div>
+            <div class="dato-label">En Libres</div>
+          </div>
+          <div class="dato-card">
+            <div class="dato-num">${jugadores.porCategoria.senior}</div>
+            <div class="dato-label">En Senior</div>
+          </div>
+          <div class="dato-card">
+            <div class="dato-num">${jugadores.intercategoria.dnisUnicos}</div>
+            <div class="dato-label">Jugadores IC</div>
+          </div>
+          <div class="dato-card">
+            <div class="dato-num">${jugadores.mas35}</div>
+            <div class="dato-label">Con marca +35</div>
+          </div>
+          ${jugadores.edades ? `
+          <div class="dato-card">
+            <div class="dato-num">${jugadores.edades.promedio.toFixed(1)}</div>
+            <div class="dato-label">Edad promedio</div>
+          </div>
+          <div class="dato-card">
+            <div class="dato-num">${jugadores.edades.min.toFixed(0)} - ${jugadores.edades.max.toFixed(0)}</div>
+            <div class="dato-label">Rango de edades</div>
+          </div>
+          ` : ''}
+        </div>
+
+        <div style="margin-top:20px">
+          <div style="font-size:0.85rem;font-weight:600;color:var(--gris3);margin-bottom:10px">Distribución por categoría</div>
+          <div class="categoria-dist">
+            <div class="cat-bar libres" style="width:${(jugadores.porCategoria.libres / jugadores.totalRegistros * 100).toFixed(1)}%"></div>
+            <div class="cat-bar senior" style="width:${(jugadores.porCategoria.senior / jugadores.totalRegistros * 100).toFixed(1)}%"></div>
+          </div>
+          <div class="cat-legend">
+            <div class="cat-legend-item"><div class="cat-legend-dot" style="background:var(--azul2)"></div> Libres (${jugadores.porCategoria.libres})</div>
+            <div class="cat-legend-item"><div class="cat-legend-dot" style="background:var(--verde)"></div> Senior (${jugadores.porCategoria.senior})</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stats-section">
+        <div class="stats-section-title">⚽ Equipos</div>
+        <div class="datos-grid" style="margin-bottom:20px">
+          <div class="dato-card">
+            <div class="dato-num">${equipos.total}</div>
+            <div class="dato-label">Equipos totales</div>
+          </div>
+          <div class="dato-card">
+            <div class="dato-num">${equipos.libres}</div>
+            <div class="dato-label">En Libres</div>
+          </div>
+          <div class="dato-card">
+            <div class="dato-num">${equipos.senior}</div>
+            <div class="dato-label">En Senior</div>
+          </div>
+          <div class="dato-card">
+            <div class="dato-num">${(jugadores.totalRegistros / equipos.total).toFixed(1)}</div>
+            <div class="dato-label">Promedio jugadores/equipo</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stats-section">
+        <div class="stats-section-title">📋 Distribución por Tipo de Socio</div>
+        <div class="card" style="margin-top:0">
+          <div class="tabla-wrapper">
+            <table>
+              <thead><tr><th>Tipo de Socio</th><th style="text-align:center">Cantidad</th><th style="text-align:center">%</th></tr></thead>
+              <tbody>
+                ${jugadores.porTipoSocio.map(t => `
+                  <tr>
+                    <td class="jugador-nombre">${t.tipo}</td>
+                    <td style="text-align:center;font-weight:600">${t.cantidad}</td>
+                    <td style="text-align:center;color:var(--gris3)">${t.porcentaje.toFixed(1)}%</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    `;
+  } catch(e) {
+    console.error('[CDP] Error en renderEstadisticasAdmin:', e);
+    cnt.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div>Error al cargar estadísticas: ${e.message}<br><br><button class="btn-primary" onclick="renderEstadisticasAdmin()">🔄 Reintentar</button></div>`;
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════
