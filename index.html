@@ -804,10 +804,15 @@
 <div class="modal-overlay" id="modal-obs-solicitud" style="display:none">
   <div class="modal-card" style="max-width:460px">
     <div class="modal-header">
-      <span class="modal-title" id="obs-sol-titulo">📝 Observar solicitud</span>
+      <span class="modal-title" id="obs-sol-titulo">Observar solicitud</span>
       <button class="modal-close" onclick="cerrarModal('modal-obs-solicitud')">✕</button>
     </div>
     <div class="modal-body" style="padding:20px;display:flex;flex-direction:column;gap:14px">
+      <!-- Campo nombre editable: visible solo al Aprobar Alta/Traspaso -->
+      <div class="form-group" id="nombre-sol-group" style="display:none">
+        <label>Nombre del jugador <span style="font-weight:400;color:var(--gris3)">(podés corregirlo)</span></label>
+        <input id="nombre-sol-texto" type="text" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit;text-transform:uppercase">
+      </div>
       <!-- Campo principal: motivo (visible en Rechazar/Observar, oculto al Aprobar) -->
       <div class="form-group" id="obs-sol-group">
         <label id="obs-sol-label">Aclaración / motivo</label>
@@ -816,7 +821,7 @@
       </div>
       <!-- Campo comentario: siempre visible, opcional -->
       <div class="form-group" id="comentario-sol-group">
-        <label id="comentario-sol-label">💬 Comentario para el delegado <span style="font-weight:400;color:var(--gris3)">(opcional)</span></label>
+        <label id="comentario-sol-label">Comentario para el delegado <span style="font-weight:400;color:var(--gris3)">(opcional)</span></label>
         <textarea id="comentario-sol-texto" rows="3" placeholder="Ej: El jugador ya fue dado de alta. Ante cualquier duda consultá al administrador."
           style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit;resize:vertical"></textarea>
       </div>
@@ -3532,7 +3537,7 @@ async function renderGestionJugadores(equipoFiltro = '') {
                   </div>
                   <div class="tabla-wrapper">
                     <table>
-                      <thead><tr><th>ID</th><th>Apellido y Nombres</th><th>DNI</th><th>Tipo</th><th>+35</th><th>IC</th><th>Estado</th><th>Acciones</th></tr></thead>
+                      <thead><tr><th>ID</th><th>Apellido y Nombres</th><th>DNI</th><th>Fecha Nac</th><th>Tipo</th><th>+35</th><th>IC</th><th>Estado</th><th>Acciones</th></tr></thead>
                       <tbody>
                         ${jugs.map(j => {
                           const habColor = j.habManual==='SI' ? 'var(--verde)' : j.habManual==='NO' ? 'var(--rojo)' : 'var(--gris3)';
@@ -3542,13 +3547,14 @@ async function renderGestionJugadores(equipoFiltro = '') {
                             <td style="font-family:'JetBrains Mono',monospace;font-size:0.78rem;color:var(--gris3)">${j.id}</td>
                             <td class="jugador-nombre">${j.nombre}</td>
                             <td style="font-size:0.78rem;color:var(--gris3)">${j.dni||'—'}</td>
+                            <td style="font-size:0.78rem;color:var(--gris3)">${j.fechaNac||'—'}</td>
                             <td><span style="font-size:0.75rem;padding:2px 6px;border-radius:8px;background:var(--gris1);color:var(--gris3)">${formatTipoSocio(j.tipoSocio)}</span></td>
                             <td style="text-align:center">${j.mas35?'<span class="badge-mas35">'+getLabelMasById(j.equipoId)+'</span>':''}</td>
                             <td style="text-align:center">${j.ic?'<span class="badge-ic">IC</span>':''}</td>
                             <td style="font-size:0.78rem;color:${habColor};font-weight:600">${habLabel}</td>
                             <td>
                               <div class="btn-actions">
-                                <button class="btn-sm btn-ver" onclick="abrirModalEditarJugador('${j.id}','${j.nombre.replace(/'/g,"\\'")}','${j.equipoId}',${j.mas35},${j.ic},'${j.dni||''}','${j.tipoSocio||'Activo'}')">✏️ Editar</button>
+                                <button class="btn-sm btn-ver" onclick="abrirModalEditarJugador('${j.id}','${j.nombre.replace(/'/g,"\\'")}','${j.equipoId}',${j.mas35},${j.ic},'${j.dni||''}','${j.tipoSocio||'Activo'}','${j.fechaNac||''}')">✏️ Editar</button>
                                 <button class="btn-sm btn-ver" onclick="abrirModalTraspaso('${j.id}','${j.nombre.replace(/'/g,"\\'")}','${j.equipoId}')">🔄 Traspasar</button>
                                 ${j.habManual!=='SI' ? `<button class="btn-sm btn-aprobar" onclick="habilitarJugador('${j.id}','${j.nombre.replace(/'/g,"\\'")}')">✅ Habilitar</button>` : ''}
                                 ${j.habManual!=='NO' ? `<button class="btn-sm" style="background:#f59e0b;color:white" onclick="inhabilitarJugador('${j.id}','${j.nombre.replace(/'/g,"\\'")}')">⛔ Inhabilitar</button>` : ''}
@@ -3636,13 +3642,17 @@ async function renderGestionJugadores(equipoFiltro = '') {
                 <input id="edit-jug-dni" type="text" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit">
               </div>
               <div class="form-group" style="flex:1">
-                <label>Tipo de Socio</label>
-                <select id="edit-jug-tipo-socio" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit">
-                  <option value="Activo">Activo</option>
-                  <option value="Pasivo">Pasivo</option>
-                  <option value="Colaborador">Colaborador</option>
-                </select>
+                <label>Fecha de Nacimiento</label>
+                <input id="edit-jug-fecha-nac" type="date" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit">
               </div>
+            </div>
+            <div class="form-group">
+              <label>Tipo de Socio</label>
+              <select id="edit-jug-tipo-socio" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit">
+                <option value="Activo">Activo</option>
+                <option value="Pasivo">Pasivo</option>
+                <option value="Colaborador">Colaborador</option>
+              </select>
             </div>
             <div style="display:flex;gap:16px">
               <label style="display:flex;align-items:center;gap:6px;font-size:0.88rem;cursor:pointer">
@@ -3746,13 +3756,22 @@ async function confirmarAltaJugador() {
   btn.disabled = false; btn.textContent = '➕ Dar de alta';
 }
 
-function abrirModalEditarJugador(id, nombre, equipoId, mas35, ic, dni, tipoSocio) {
+function abrirModalEditarJugador(id, nombre, equipoId, mas35, ic, dni, tipoSocio, fechaNac) {
   document.getElementById('edit-jug-id').value      = id;
   document.getElementById('edit-jug-nombre').value  = nombre;
   document.getElementById('edit-jug-dni').value     = dni || '';
   document.getElementById('edit-jug-tipo-socio').value = tipoSocio || 'Activo';
   document.getElementById('edit-jug-mas35').checked = mas35 === true || mas35 === 'true';
   document.getElementById('edit-jug-ic').checked    = ic    === true || ic    === 'true';
+  // Convertir fecha dd/mm/yyyy a yyyy-mm-dd para input date
+  let fechaInput = '';
+  if (fechaNac && fechaNac.includes('/')) {
+    const partes = fechaNac.split('/');
+    if (partes.length === 3) fechaInput = `${partes[2]}-${partes[1].padStart(2,'0')}-${partes[0].padStart(2,'0')}`;
+  } else if (fechaNac) {
+    fechaInput = fechaNac;
+  }
+  document.getElementById('edit-jug-fecha-nac').value = fechaInput;
   abrirModal('modal-editar-jug');
 }
 
@@ -3761,16 +3780,17 @@ async function confirmarEditarJugador() {
   const nombre    = document.getElementById('edit-jug-nombre').value.trim();
   if (!nombre) { showToast('Ingresá el nombre', 'error'); return; }
   const dni      = document.getElementById('edit-jug-dni')?.value?.trim() || '';
+  const fechaNac = document.getElementById('edit-jug-fecha-nac')?.value || '';
   const tipoSocio = document.getElementById('edit-jug-tipo-socio')?.value || 'Activo';
   try {
     const data = await api('editarJugador', {
-      jugadorId, nombre, dni, tipoSocio,
+      jugadorId, nombre, dni, fechaNac, tipoSocio,
       mas35: String(document.getElementById('edit-jug-mas35').checked),
       ic:    String(document.getElementById('edit-jug-ic').checked),
     });
     if (data.ok) {
       cerrarModal('modal-editar-jug');
-      showToast('Jugador actualizado ✅', 'success');
+      showToast('Jugador actualizado', 'success');
       renderGestionJugadores();
     } else throw new Error(data.msg);
   } catch(e) { showToast('Error: ' + e.message, 'error'); }
@@ -4643,7 +4663,7 @@ function renderTarjetaSolicitud(s, esPendiente) {
     </div>`;
 }
 
-async function resolverSolicitud(id, decision, tipoSolicitud, obs, comentario) {
+async function resolverSolicitud(id, decision, tipoSolicitud, obs, comentario, nombreCorregido) {
   const tipo = tipoSolicitud || 'Alta';
   if (decision === 'Aprobada') {
     const msgs = {
@@ -4655,7 +4675,9 @@ async function resolverSolicitud(id, decision, tipoSolicitud, obs, comentario) {
     if (!confirm(msgs[tipo] || msgs['Alta'])) return;
   }
   try {
-    const data = await api('resolverSolicitudAlta', { id, decision, obs: obs || '', comentario: comentario || '' });
+    const params = { id, decision, obs: obs || '', comentario: comentario || '' };
+    if (nombreCorregido) params.nombreCorregido = nombreCorregido;
+    const data = await api('resolverSolicitudAlta', params);
     if (data.ok) {
       showToast(data.msg, 'success');
       renderSolicitudesAlta();
@@ -4664,46 +4686,65 @@ async function resolverSolicitud(id, decision, tipoSolicitud, obs, comentario) {
 }
 
 function abrirModalObservacion(solicitudId, nombre, decision, tipoSolicitud) {
-  APP._solicitudPendiente = { id: solicitudId, decision, tipoSolicitud: tipoSolicitud || 'Alta' };
+  APP._solicitudPendiente = { id: solicitudId, decision, tipoSolicitud: tipoSolicitud || 'Alta', nombreOriginal: nombre };
   const esAprobada = decision === 'Aprobada';
+  const esAltaOTraspaso = (tipoSolicitud === 'Alta' || tipoSolicitud === 'Traspaso' || !tipoSolicitud);
 
   // Título del modal
   document.getElementById('obs-sol-titulo').textContent =
-    esAprobada      ? `✅ Aprobar con comentario — ${nombre}` :
-    decision === 'Rechazada' ? `❌ Rechazar solicitud — ${nombre}` :
-                               `📝 Observar solicitud — ${nombre}`;
+    esAprobada      ? `Aprobar con comentario — ${nombre}` :
+    decision === 'Rechazada' ? `Rechazar solicitud — ${nombre}` :
+                               `Observar solicitud — ${nombre}`;
 
   // Resetear campos
   document.getElementById('obs-sol-texto').value = '';
   document.getElementById('comentario-sol-texto').value = '';
+  document.getElementById('nombre-sol-texto').value = nombre;
 
-  // Si es Aprobada: ocultar campo motivo, mostrar solo comentario
+  // Campo nombre editable: solo visible al aprobar Alta o Traspaso
+  const nombreGroup   = document.getElementById('nombre-sol-group');
   const obsGroup      = document.getElementById('obs-sol-group');
   const comentGroup   = document.getElementById('comentario-sol-group');
   const comentLabel   = document.getElementById('comentario-sol-label');
+
+  if (esAprobada && esAltaOTraspaso) {
+    nombreGroup.style.display = '';
+  } else {
+    nombreGroup.style.display = 'none';
+  }
+
   if (esAprobada) {
     obsGroup.style.display    = 'none';
     comentGroup.style.display = '';
-    comentLabel.innerHTML     = '💬 Comentario para el delegado <span style="font-weight:400;color:var(--gris3)">(opcional)</span>';
+    comentLabel.innerHTML     = 'Comentario para el delegado <span style="font-weight:400;color:var(--gris3)">(opcional)</span>';
   } else {
     obsGroup.style.display    = '';
     comentGroup.style.display = '';
     document.getElementById('obs-sol-label').textContent =
       decision === 'Rechazada' ? 'Motivo de rechazo (requerido)' : 'Aclaración requerida al delegado';
-    comentLabel.innerHTML = '💬 Comentario adicional <span style="font-weight:400;color:var(--gris3)">(opcional)</span>';
+    comentLabel.innerHTML = 'Comentario adicional <span style="font-weight:400;color:var(--gris3)">(opcional)</span>';
   }
   abrirModal('modal-obs-solicitud');
 }
 
 async function confirmarObservacion() {
-  const { id, decision, tipoSolicitud } = APP._solicitudPendiente || {};
+  const { id, decision, tipoSolicitud, nombreOriginal } = APP._solicitudPendiente || {};
   if (!id) return;
   const esAprobada = decision === 'Aprobada';
   const obs        = esAprobada ? '' : document.getElementById('obs-sol-texto').value.trim();
   const comentario = document.getElementById('comentario-sol-texto').value.trim();
+  
+  // Obtener nombre corregido si es Alta o Traspaso
+  let nombreCorregido = null;
+  const esAltaOTraspaso = (tipoSolicitud === 'Alta' || tipoSolicitud === 'Traspaso' || !tipoSolicitud);
+  if (esAprobada && esAltaOTraspaso) {
+    nombreCorregido = document.getElementById('nombre-sol-texto').value.trim().toUpperCase();
+    if (!nombreCorregido) { showToast('Ingresá el nombre del jugador', 'error'); return; }
+  }
+  
   if (!esAprobada && !obs) { showToast('Ingresá la observación', 'error'); return; }
   cerrarModal('modal-obs-solicitud');
-  await resolverSolicitud(id, decision, tipoSolicitud, obs, comentario);
+  await resolverSolicitud(id, decision, tipoSolicitud, obs, comentario, nombreCorregido);
 }
 
 // ══════════════════════════════════════════════════════════════════
