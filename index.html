@@ -837,6 +837,10 @@
     <div class="visor-info">
       <strong id="visor-jugador">—</strong>
       <span id="visor-equipo-mes">—</span>
+      <div id="visor-nota-admin" style="display:none;margin-top:6px;padding:6px 10px;background:#fef3c7;border-radius:6px;border:1px solid #fbbf24">
+        <div style="font-size:0.68rem;font-weight:600;color:#92400e;margin-bottom:2px">📝 Nota Admin:</div>
+        <div id="visor-nota-texto" style="font-size:0.78rem;color:#78350f;line-height:1.3"></div>
+      </div>
     </div>
     <span id="visor-estado" class="visor-estado">—</span>
   </div>
@@ -2933,6 +2937,8 @@ async function abrirVisorMobile(comprobanteId) {
   const content = document.getElementById('visor-mobile-content');
   const btnAprobar = document.getElementById('visor-btn-aprobar');
   const btnRechazar = document.getElementById('visor-btn-rechazar');
+  const notaContainer = document.getElementById('visor-nota-admin');
+  const notaTexto = document.getElementById('visor-nota-texto');
   
   // Mostrar overlay con loading
   overlay.classList.add('active');
@@ -2940,6 +2946,7 @@ async function abrirVisorMobile(comprobanteId) {
   document.getElementById('visor-jugador').textContent = '—';
   document.getElementById('visor-equipo-mes').textContent = '—';
   document.getElementById('visor-estado').textContent = '—';
+  notaContainer.style.display = 'none';
   btnAprobar.style.display = 'none';
   btnRechazar.style.display = 'none';
   
@@ -2955,6 +2962,15 @@ async function abrirVisorMobile(comprobanteId) {
     // Header info
     document.getElementById('visor-jugador').textContent = c.jugadorNombre;
     document.getElementById('visor-equipo-mes').textContent = `${c.equipoId.replace(/_/g,' ')} · ${c.mes}`;
+    
+    // Cargar nota admin
+    try {
+      const nd = await api('getNotaAdmin', { jugadorId: c.jugadorId });
+      if (nd.ok && nd.nota && nd.nota.nota) {
+        notaTexto.textContent = nd.nota.nota;
+        notaContainer.style.display = 'block';
+      }
+    } catch(e) {}
     
     // Estado badge
     const estadoEl = document.getElementById('visor-estado');
