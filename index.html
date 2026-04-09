@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- PAGOS CDP — Frontend v5.43 — 2026-03-31 16:45 ARG (+ visor mobile fullscreen) -->
+<!-- PAGOS CDP — Frontend v5.44 — 2026-04-09 11:15 ARG (+ optimización carga delegado) -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -1604,26 +1604,15 @@ async function renderDelegado(vista = 'mis-comprobantes') {
   console.log('[CDP] renderDelegado →', vista, 'equipoId:', equipoId);
 
   try {
-    // Llamadas SECUENCIALES (Apps Script throttlea llamadas simultáneas)
-    console.log('[CDP] Pidiendo jugadores...');
-    const dj = await apiConTimeout('getJugadores', { equipoId }, 20000);
-    if (!dj.ok) throw new Error(dj.msg || 'Error al cargar jugadores');
-    APP.jugadores = dj.jugadores || [];
-    console.log('[CDP] Jugadores OK:', APP.jugadores.length);
-
-    console.log('[CDP] Pidiendo comprobantes...');
-    const dc = await apiConTimeout('getComprobantes', { equipoId }, 20000);
-    APP.comprobantes = (dc && dc.ok) ? dc.comprobantes : [];
-    console.log('[CDP] Comprobantes OK:', APP.comprobantes.length);
-
-    // Parámetros (no esencial, no frena si falla)
-    try {
-      const dp = await apiConTimeout('getParametros', {}, 10000);
-      APP._parametrosCache = (dp && dp.ok) ? dp : null;
-    } catch(ep) {
-      console.warn('[CDP] getParametros falló (no crítico):', ep.message);
-      APP._parametrosCache = null;
-    }
+    // UNA SOLA LLAMADA optimizada que trae todo junto
+    console.log('[CDP] Pidiendo datos (getDelegadoInit)...');
+    const data = await apiConTimeout('getDelegadoInit', { equipoId }, 25000);
+    if (!data.ok) throw new Error(data.msg || 'Error al cargar datos');
+    
+    APP.jugadores = data.jugadores || [];
+    APP.comprobantes = data.comprobantes || [];
+    APP._parametrosCache = data.parametros || null;
+    console.log('[CDP] Datos OK - Jugadores:', APP.jugadores.length, 'Comprobantes:', APP.comprobantes.length);
 
     if (vista === 'historial') renderHistorial(cnt);
     else renderMisComprobantes(cnt);
