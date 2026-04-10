@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- PAGOS CDP — Frontend v5.44 — 2026-04-09 11:15 ARG (+ optimización carga delegado) -->
+<!-- PAGOS CDP — Frontend v5.46 — 2026-04-09 16:00 ARG (+ carnets digitales ocultos) -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -2041,11 +2041,13 @@ async function renderAdmin() {
   cnt.innerHTML = '<div class="loading"><div class="spinner"></div> Cargando datos...</div>';
 
   try {
-    const data = await api('getResumen');
+    // Llamadas en paralelo para mejor performance
+    const [data, dataRech] = await Promise.all([
+      api('getResumen'),
+      api('getAllComprobantes', { mes: APP.filtroMes, estado: 'Rechazado' })
+    ]);
     if (!data.ok) throw new Error(data.msg);
 
-    // Cargar también comprobantes rechazados del mes activo para el resumen
-    const dataRech = await api('getAllComprobantes', { mes: APP.filtroMes, estado: 'Rechazado' });
     const compRechazados = (dataRech.ok ? dataRech.comprobantes : []);
 
     const { total, aprobados, pendientes, rechazados, porEquipo, sancionesData } = data;
@@ -6702,6 +6704,220 @@ document.getElementById('upload-zone')?.addEventListener('drop', e => {
     handleFile(input);
   }
 });
+
+// ═══════════════════════════════════════════════════════════════════
+// CARNETS DIGITALES — Funciones ocultas (accesibles desde consola)
+// Uso: await generarCarnetsEquipo('Abogados_A')
+// ═══════════════════════════════════════════════════════════════════
+
+const CARNET_CONFIG = {
+  baseUrl: 'https://gr10-cdu.github.io/CDP/estado.html',
+  logoUrl: 'https://gr10-cdu.github.io/CDP/logo_cdp.png',
+  azul: '#2855A4',
+  verde: '#2E8B4A'
+};
+
+// Genera URL de estado para un jugador
+function generarUrlEstado(token) {
+  return `${CARNET_CONFIG.baseUrl}?t=${token}`;
+}
+
+// Genera QR como data URL usando API externa
+async function generarQR(texto, size = 150) {
+  const url = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(texto)}`;
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.readAsDataURL(blob);
+    });
+  } catch (e) {
+    console.error('Error generando QR:', e);
+    return null;
+  }
+}
+
+// Genera HTML de un carnet individual
+async function generarCarnetHTML(jugador, equipo, qrDataUrl) {
+  const tieneSalud = jugador.tieneSalud && jugador.salud;
+  
+  return `
+    <div style="width:320px;height:200px;background:linear-gradient(145deg,#1e3a5f 0%,#2855A4 60%,#2E8B4A 100%);border-radius:12px;padding:16px;display:flex;flex-direction:column;position:relative;overflow:hidden;color:white;font-family:Inter,sans-serif;page-break-inside:avoid;margin:10px;">
+      <div style="position:absolute;bottom:0;left:0;right:0;height:6px;background:#2E8B4A;"></div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+        <div style="width:45px;height:45px;background:white;border-radius:6px;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+          <img src="${CARNET_CONFIG.logoUrl}" style="width:40px;height:40px;object-fit:contain;" onerror="this.outerHTML='<span style=font-weight:700;color:#2855A4;font-size:1rem>CDP</span>'">
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:1px;">Club de Profesionales</div>
+          <div style="font-size:9px;opacity:0.8;">Justo José de Urquiza</div>
+        </div>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;justify-content:center;">
+        <div style="font-size:17px;font-weight:600;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">${jugador.nombre}</div>
+        <div style="display:inline-flex;align-items:center;">
+          <span style="background:rgba(255,255,255,0.2);font-size:12px;padding:3px 10px;border-radius:4px;font-weight:500;">DNI ${jugador.dni || '—'}</span>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;">
+        <div>
+          <div style="color:rgba(255,255,255,0.5);font-size:8px;text-transform:uppercase;">Escanear para ver</div>
+          <div style="font-size:10px;font-weight:500;">Estado actualizado</div>
+        </div>
+        <div style="width:54px;height:54px;background:white;border-radius:6px;padding:3px;">
+          <img src="${qrDataUrl}" style="width:100%;height:100%;">
+        </div>
+      </div>
+    </div>
+    <div style="width:320px;height:200px;background:white;border-radius:12px;padding:16px;display:flex;flex-direction:column;position:relative;overflow:hidden;font-family:Inter,sans-serif;page-break-inside:avoid;margin:10px;border:1px solid #e0e0e0;">
+      <div style="position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#2855A4,#2E8B4A);"></div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;margin-top:4px;">
+        <div style="width:22px;height:22px;background:#dc2626;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-size:14px;font-weight:700;">+</div>
+        <span style="font-size:14px;font-weight:600;color:#2855A4;">Ficha de salud</span>
+      </div>
+      ${tieneSalud ? `
+      <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;font-size:11px;">
+        <div>
+          <div style="color:#2E8B4A;font-size:9px;text-transform:uppercase;font-weight:500;">Grupo sanguíneo</div>
+          <div style="color:#1a1a1a;font-weight:500;font-size:13px;">${jugador.salud.grupoSanguineo || '—'}</div>
+        </div>
+        <div>
+          <div style="color:#2E8B4A;font-size:9px;text-transform:uppercase;font-weight:500;">Obra social</div>
+          <div style="color:#1a1a1a;font-weight:500;">${jugador.salud.obraSocial || '—'}</div>
+        </div>
+        ${jugador.salud.condicionesMedicas ? `<div style="grid-column:span 2;"><div style="color:#2E8B4A;font-size:9px;text-transform:uppercase;font-weight:500;">Condiciones</div><div style="color:#1a1a1a;font-weight:500;">${jugador.salud.condicionesMedicas}</div></div>` : ''}
+        ${jugador.salud.medicacion ? `<div style="grid-column:span 2;"><div style="color:#2E8B4A;font-size:9px;text-transform:uppercase;font-weight:500;">Medicación</div><div style="color:#1a1a1a;font-weight:500;">${jugador.salud.medicacion}</div></div>` : ''}
+        <div style="grid-column:span 2;">
+          <div style="color:#2E8B4A;font-size:9px;text-transform:uppercase;font-weight:500;">Contacto emergencia</div>
+          <div style="color:#1a1a1a;font-weight:500;">${jugador.salud.contactoNombre || '—'} ${jugador.salud.contactoTel ? '— ' + jugador.salud.contactoTel : ''}</div>
+        </div>
+      </div>
+      ` : `
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;">
+        <div style="width:50px;height:50px;border:2px dashed #2E8B4A;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:10px;">
+          <span style="font-size:24px;color:#2E8B4A;">?</span>
+        </div>
+        <div style="font-size:13px;font-weight:500;color:#2855A4;">Sin datos cargados</div>
+        <div style="font-size:10px;color:#666;margin-top:4px;">Escaneá el QR y completá tu ficha</div>
+      </div>
+      `}
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;padding-top:6px;border-top:1px solid #eee;font-size:8px;color:#888;">
+        <span>Torneo 2026</span>
+        <span style="color:#2855A4;font-weight:500;">cdp.urquiza.com.ar</span>
+      </div>
+    </div>
+  `;
+}
+
+// Genera carnets de todo un equipo
+async function generarCarnetsEquipo(equipoId) {
+  if (!equipoId) {
+    console.error('Uso: await generarCarnetsEquipo("Abogados_A")');
+    return;
+  }
+  
+  console.log(`Generando carnets para ${equipoId}...`);
+  
+  try {
+    const data = await api('getTokensEquipo', { equipoId });
+    if (!data.ok) {
+      console.error('Error:', data.msg);
+      return;
+    }
+    
+    const { equipo, jugadores } = data;
+    console.log(`Equipo: ${equipo.nombre} (${equipo.categoria}) - ${jugadores.length} jugadores`);
+    
+    let carnetsHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Carnets ${equipo.nombre}</title>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+        <style>
+          @page { size: A4; margin: 10mm; }
+          body { font-family: Inter, sans-serif; }
+          .page { display: flex; flex-wrap: wrap; justify-content: center; }
+          @media print {
+            .no-print { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="no-print" style="text-align:center;padding:20px;background:#f0f0f0;">
+          <h2>Carnets ${equipo.nombre} — ${equipo.categoria}</h2>
+          <p>${jugadores.length} jugadores</p>
+          <button onclick="window.print()" style="padding:10px 20px;font-size:16px;cursor:pointer;">🖨️ Imprimir</button>
+        </div>
+        <div class="page">
+    `;
+    
+    for (const jug of jugadores) {
+      const url = generarUrlEstado(jug.token);
+      console.log(`  - ${jug.nombre}: ${url}`);
+      const qr = await generarQR(url, 150);
+      const carnet = await generarCarnetHTML(jug, equipo, qr);
+      carnetsHtml += carnet;
+    }
+    
+    carnetsHtml += `
+        </div>
+      </body>
+      </html>
+    `;
+    
+    // Abrir en nueva ventana
+    const win = window.open('', '_blank');
+    win.document.write(carnetsHtml);
+    win.document.close();
+    
+    console.log('✅ Carnets generados. Usá Ctrl+P para imprimir.');
+    return { ok: true, cantidad: jugadores.length };
+    
+  } catch (e) {
+    console.error('Error generando carnets:', e);
+  }
+}
+
+// Genera link de estado para un jugador específico (para compartir por WhatsApp)
+async function generarLinkJugador(equipoId, nombreJugador) {
+  try {
+    const data = await api('getTokensEquipo', { equipoId });
+    if (!data.ok) {
+      console.error('Error:', data.msg);
+      return null;
+    }
+    
+    const jugador = data.jugadores.find(j => 
+      j.nombre.toUpperCase().includes(nombreJugador.toUpperCase())
+    );
+    
+    if (!jugador) {
+      console.error(`Jugador "${nombreJugador}" no encontrado en ${equipoId}`);
+      console.log('Jugadores disponibles:', data.jugadores.map(j => j.nombre));
+      return null;
+    }
+    
+    const url = generarUrlEstado(jugador.token);
+    console.log(`Link para ${jugador.nombre}:`);
+    console.log(url);
+    return url;
+    
+  } catch (e) {
+    console.error('Error:', e);
+    return null;
+  }
+}
+
+// Exponer funciones para uso desde consola
+window.generarCarnetsEquipo = generarCarnetsEquipo;
+window.generarLinkJugador = generarLinkJugador;
+console.log('[CDP] Funciones de carnets disponibles:');
+console.log('  - await generarCarnetsEquipo("Abogados_A")');
+console.log('  - await generarLinkJugador("Abogados_A", "Rodriguez")');
 </script>
 </body>
 </html>
