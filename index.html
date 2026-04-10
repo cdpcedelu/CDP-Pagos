@@ -1241,6 +1241,7 @@ let APP = {
   filtroEstado: 'Pendiente',
   filtroEquipo: '',
   filtroMes: CONFIG.MES_ACTUAL,
+  carnetsHabilitados: false, // se carga desde Parametros
   // datos modal
   modalJugadorId: null,
   modalJugadorNombre: null,
@@ -1612,6 +1613,7 @@ async function renderDelegado(vista = 'mis-comprobantes') {
     APP.jugadores = data.jugadores || [];
     APP.comprobantes = data.comprobantes || [];
     APP._parametrosCache = data.parametros || null;
+    APP.carnetsHabilitados = data.parametros?.carnetsHabilitados || false;
     console.log('[CDP] Datos OK - Jugadores:', APP.jugadores.length, 'Comprobantes:', APP.comprobantes.length);
 
     if (vista === 'historial') renderHistorial(cnt);
@@ -5241,6 +5243,14 @@ async function renderGestionDelegado(subvista = 'menu') {
             <div class="gestion-title">Ficha de Inscripción</div>
             <div class="gestion-desc">Descargar ficha de solicitud de ingreso como socio</div>
           </div>
+
+          ${APP.carnetsHabilitados ? `
+          <div class="gestion-card" onclick="renderGestionDelegado('carnets')">
+            <div class="gestion-icon">🪪</div>
+            <div class="gestion-title">Carnets Digitales</div>
+            <div class="gestion-desc">Imprimir credenciales con QR para los jugadores</div>
+          </div>
+          ` : ''}
         </div>
       </div>`;
     return;
@@ -5312,7 +5322,184 @@ async function renderGestionDelegado(subvista = 'menu') {
     await renderMisSolicitudes(cnt);
     return;
   }
+
+  if (subvista === 'carnets') {
+    await renderCarnetsDelegado(cnt);
+    return;
+  }
 }
+
+// Renderiza la vista de carnets para delegados
+async function renderCarnetsDelegado(cnt) {
+  cnt.innerHTML = `
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+        <button class="btn-sm btn-ver" onclick="renderGestionDelegado('menu')">← Volver</button>
+        <div class="card-title" style="margin:0">🪪 Carnets Digitales — ${APP.equipo.nombre}</div>
+      </div>
+      <div style="text-align:center;padding:40px;color:var(--gris3)">
+        <div class="spinner"></div>
+        <p>Cargando jugadores...</p>
+      </div>
+    </div>`;
+
+  try {
+    const data = await api('getTokensEquipo', { equipoId: APP.equipo.id });
+    if (!data.ok) {
+      cnt.innerHTML = `
+        <div class="card">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+            <button class="btn-sm btn-ver" onclick="renderGestionDelegado('menu')">← Volver</button>
+            <div class="card-title" style="margin:0">🪪 Carnets Digitales</div>
+          </div>
+          <div style="text-align:center;padding:40px;color:#dc2626">
+            <p>Error: ${data.msg}</p>
+          </div>
+        </div>`;
+      return;
+    }
+
+    const { equipo, jugadores } = data;
+    
+    let jugadoresHtml = jugadores.map((j, idx) => `
+      <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:${idx%2===0?'#f8fafc':'white'};border-radius:6px;cursor:pointer;">
+        <input type="checkbox" class="carnet-check" data-idx="${idx}" checked style="width:18px;height:18px;accent-color:#2855A4;">
+        <span style="flex:1;font-weight:500;">${j.nombre}</span>
+        <span style="color:var(--gris3);font-size:0.85rem;">DNI ${j.dni || '—'}</span>
+        ${j.tieneSalud ? '<span style="background:#dcfce7;color:#16a34a;font-size:0.7rem;padding:2px 6px;border-radius:4px;">Salud ✓</span>' : '<span style="background:#fef2f2;color:#dc2626;font-size:0.7rem;padding:2px 6px;border-radius:4px;">Sin salud</span>'}
+      </label>
+    `).join('');
+
+    cnt.innerHTML = `
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+          <button class="btn-sm btn-ver" onclick="renderGestionDelegado('menu')">← Volver</button>
+          <div class="card-title" style="margin:0">🪪 Carnets Digitales — ${equipo.nombre}</div>
+        </div>
+        
+        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px 16px;margin-bottom:20px;font-size:0.85rem;color:#1d4ed8;">
+          <strong>Instrucciones:</strong> Seleccioná los jugadores para los que querés imprimir carnets. Cada carnet incluye un código QR que permite consultar el estado actualizado del jugador (habilitación, pagos, ficha de salud).
+        </div>
+
+        <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+          <button class="btn-sm btn-ver" onclick="document.querySelectorAll('.carnet-check').forEach(c=>c.checked=true)">✓ Seleccionar todos</button>
+          <button class="btn-sm btn-ver" onclick="document.querySelectorAll('.carnet-check').forEach(c=>c.checked=false)">✗ Deseleccionar todos</button>
+          <span style="flex:1"></span>
+          <span style="color:var(--gris3);font-size:0.85rem;align-self:center;" id="carnets-count">${jugadores.length} jugadores</span>
+        </div>
+
+        <div style="max-height:400px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px;" id="carnets-lista">
+          ${jugadoresHtml}
+        </div>
+
+        <div style="margin-top:20px;display:flex;gap:12px;justify-content:flex-end;">
+          <button class="btn-sm btn-aprobar" onclick="imprimirCarnetsSeleccionados()" style="padding:10px 24px;font-size:1rem;">
+            🖨️ Imprimir Carnets
+          </button>
+        </div>
+      </div>`;
+
+    // Guardar datos en variable global para uso posterior
+    window._carnetsData = { equipo, jugadores };
+
+    // Actualizar contador cuando cambian los checkboxes
+    document.querySelectorAll('.carnet-check').forEach(cb => {
+      cb.addEventListener('change', () => {
+        const seleccionados = document.querySelectorAll('.carnet-check:checked').length;
+        document.getElementById('carnets-count').textContent = `${seleccionados} de ${jugadores.length} seleccionados`;
+      });
+    });
+
+  } catch (e) {
+    console.error('Error cargando jugadores para carnets:', e);
+    cnt.innerHTML = `
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+          <button class="btn-sm btn-ver" onclick="renderGestionDelegado('menu')">← Volver</button>
+          <div class="card-title" style="margin:0">🪪 Carnets Digitales</div>
+        </div>
+        <div style="text-align:center;padding:40px;color:#dc2626">
+          <p>Error de conexión. Intentá de nuevo.</p>
+        </div>
+      </div>`;
+  }
+}
+
+// Imprime los carnets seleccionados
+async function imprimirCarnetsSeleccionados() {
+  if (!window._carnetsData) {
+    alert('Error: datos no disponibles');
+    return;
+  }
+
+  const { equipo, jugadores } = window._carnetsData;
+  const checks = document.querySelectorAll('.carnet-check:checked');
+  const indices = Array.from(checks).map(c => parseInt(c.dataset.idx));
+  
+  if (indices.length === 0) {
+    alert('Seleccioná al menos un jugador');
+    return;
+  }
+
+  const jugadoresSeleccionados = indices.map(i => jugadores[i]);
+  
+  // Mostrar loading
+  const btn = document.querySelector('.btn-aprobar');
+  const btnText = btn.innerHTML;
+  btn.innerHTML = '⏳ Generando...';
+  btn.disabled = true;
+
+  try {
+    let carnetsHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Carnets ${equipo.nombre}</title>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+        <style>
+          @page { size: A4; margin: 5mm; }
+          body { font-family: Inter, sans-serif; margin: 0; padding: 0; }
+          .page { display: flex; flex-wrap: wrap; justify-content: center; align-content: flex-start; }
+          @media print {
+            .no-print { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="no-print" style="text-align:center;padding:20px;background:#f0f0f0;">
+          <h2>Carnets ${equipo.nombre} — ${equipo.categoria}</h2>
+          <p>${jugadoresSeleccionados.length} carnets</p>
+          <button onclick="window.print()" style="padding:10px 20px;font-size:16px;cursor:pointer;">🖨️ Imprimir</button>
+        </div>
+        <div class="page">
+    `;
+    
+    for (const jug of jugadoresSeleccionados) {
+      const url = generarUrlEstado(jug.token);
+      const qr = await generarQR(url, 150);
+      const carnet = await generarCarnetHTML(jug, equipo, qr);
+      carnetsHtml += carnet;
+    }
+    
+    carnetsHtml += `
+        </div>
+      </body>
+      </html>
+    `;
+    
+    // Abrir en nueva ventana
+    const win = window.open('', '_blank');
+    win.document.write(carnetsHtml);
+    win.document.close();
+
+  } catch (e) {
+    console.error('Error generando carnets:', e);
+    alert('Error generando carnets. Intentá de nuevo.');
+  } finally {
+    btn.innerHTML = btnText;
+    btn.disabled = false;
+  }
 
 function renderFormularioSolicitudAlta(cnt) {
   cnt.innerHTML = `
