@@ -6744,68 +6744,70 @@ async function generarCarnetHTML(jugador, equipo, qrDataUrl) {
   const tieneSalud = jugador.tieneSalud && jugador.salud;
   
   return `
-    <div style="width:255px;height:160px;background:linear-gradient(145deg,#1e3a5f 0%,#2855A4 60%,#2E8B4A 100%);border-radius:10px;padding:12px;display:flex;flex-direction:column;position:relative;overflow:hidden;color:white;font-family:Inter,sans-serif;page-break-inside:avoid;margin:5px;">
-      <div style="position:absolute;bottom:0;left:0;right:0;height:4px;background:#2E8B4A;"></div>
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-        <div style="width:32px;height:32px;background:white;border-radius:4px;display:flex;align-items:center;justify-content:center;overflow:hidden;">
-          <img src="${CARNET_CONFIG.logoUrl}" style="width:28px;height:28px;object-fit:contain;">
+    <div style="display:inline-block;page-break-inside:avoid;margin:5px;vertical-align:top;">
+      <div style="width:255px;height:160px;background:linear-gradient(145deg,#1e3a5f 0%,#2855A4 60%,#2E8B4A 100%);border-radius:10px;padding:12px;display:flex;flex-direction:column;position:relative;overflow:hidden;color:white;font-family:Inter,sans-serif;box-sizing:border-box;">
+        <div style="position:absolute;bottom:0;left:0;right:0;height:4px;background:#2E8B4A;"></div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+          <div style="width:32px;height:32px;background:white;border-radius:4px;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+            <img src="${CARNET_CONFIG.logoUrl}" style="width:28px;height:28px;object-fit:contain;">
+          </div>
+          <div>
+            <div style="font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Club de Profesionales</div>
+            <div style="font-size:7px;opacity:0.8;">Justo José de Urquiza</div>
+          </div>
         </div>
-        <div>
-          <div style="font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Club de Profesionales</div>
-          <div style="font-size:7px;opacity:0.8;">Justo José de Urquiza</div>
+        <div style="flex:1;display:flex;flex-direction:column;justify-content:center;">
+          <div style="font-size:13px;font-weight:600;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.3px;">${jugador.nombre}</div>
+          <div style="display:inline-flex;align-items:center;">
+            <span style="background:rgba(255,255,255,0.2);font-size:9px;padding:2px 8px;border-radius:3px;font-weight:500;">DNI ${jugador.dni || '—'}</span>
+          </div>
         </div>
-      </div>
-      <div style="flex:1;display:flex;flex-direction:column;justify-content:center;">
-        <div style="font-size:13px;font-weight:600;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.3px;">${jugador.nombre}</div>
-        <div style="display:inline-flex;align-items:center;">
-          <span style="background:rgba(255,255,255,0.2);font-size:9px;padding:2px 8px;border-radius:3px;font-weight:500;">DNI ${jugador.dni || '—'}</span>
-        </div>
-      </div>
-      <div style="display:flex;justify-content:space-between;align-items:flex-end;">
-        <div>
-          <div style="color:rgba(255,255,255,0.5);font-size:6px;text-transform:uppercase;">Escanear para ver</div>
-          <div style="font-size:8px;font-weight:500;">Estado actualizado</div>
-        </div>
-        <div style="width:42px;height:42px;background:white;border-radius:4px;padding:2px;">
-          <img src="${qrDataUrl}" style="width:100%;height:100%;">
-        </div>
-      </div>
-    </div>
-    <div style="width:255px;height:160px;background:white;border-radius:10px;padding:12px;display:flex;flex-direction:column;position:relative;overflow:hidden;font-family:Inter,sans-serif;page-break-inside:avoid;margin:5px;border:1px solid #e0e0e0;">
-      <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#2855A4,#2E8B4A);"></div>
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;margin-top:2px;">
-        <div style="width:18px;height:18px;background:#dc2626;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-size:11px;font-weight:700;">+</div>
-        <span style="font-size:11px;font-weight:600;color:#2855A4;">Ficha de salud</span>
-      </div>
-      ${tieneSalud ? `
-      <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:4px 8px;font-size:9px;">
-        <div>
-          <div style="color:#2E8B4A;font-size:7px;text-transform:uppercase;font-weight:500;">Grupo sanguíneo</div>
-          <div style="color:#1a1a1a;font-weight:500;font-size:10px;">${jugador.salud.grupoSanguineo || '—'}</div>
-        </div>
-        <div>
-          <div style="color:#2E8B4A;font-size:7px;text-transform:uppercase;font-weight:500;">Obra social</div>
-          <div style="color:#1a1a1a;font-weight:500;font-size:9px;">${jugador.salud.obraSocial || '—'}</div>
-        </div>
-        ${jugador.salud.condicionesMedicas ? `<div style="grid-column:span 2;"><div style="color:#2E8B4A;font-size:7px;text-transform:uppercase;font-weight:500;">Condiciones</div><div style="color:#1a1a1a;font-weight:500;font-size:9px;">${jugador.salud.condicionesMedicas}</div></div>` : ''}
-        ${jugador.salud.medicacion ? `<div style="grid-column:span 2;"><div style="color:#2E8B4A;font-size:7px;text-transform:uppercase;font-weight:500;">Medicación</div><div style="color:#1a1a1a;font-weight:500;font-size:9px;">${jugador.salud.medicacion}</div></div>` : ''}
-        <div style="grid-column:span 2;">
-          <div style="color:#2E8B4A;font-size:7px;text-transform:uppercase;font-weight:500;">Contacto emergencia</div>
-          <div style="color:#1a1a1a;font-weight:500;font-size:9px;">${jugador.salud.contactoNombre || '—'} ${jugador.salud.contactoTel ? '— ' + jugador.salud.contactoTel : ''}</div>
+        <div style="display:flex;justify-content:space-between;align-items:flex-end;">
+          <div>
+            <div style="color:rgba(255,255,255,0.5);font-size:6px;text-transform:uppercase;">Escanear para ver</div>
+            <div style="font-size:8px;font-weight:500;">Estado actualizado</div>
+          </div>
+          <div style="width:42px;height:42px;background:white;border-radius:4px;padding:2px;">
+            <img src="${qrDataUrl}" style="width:100%;height:100%;">
+          </div>
         </div>
       </div>
-      ` : `
-      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;">
-        <div style="width:36px;height:36px;border:2px dashed #2E8B4A;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:6px;">
-          <span style="font-size:18px;color:#2E8B4A;">?</span>
+      <div style="width:255px;height:160px;background:white;border-radius:10px;padding:12px;display:flex;flex-direction:column;position:relative;overflow:hidden;font-family:Inter,sans-serif;border:1px solid #e0e0e0;box-sizing:border-box;margin-top:5px;">
+        <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#2855A4,#2E8B4A);"></div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;margin-top:2px;">
+          <div style="width:18px;height:18px;background:#dc2626;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-size:11px;font-weight:700;">+</div>
+          <span style="font-size:11px;font-weight:600;color:#2855A4;">Ficha de salud</span>
         </div>
-        <div style="font-size:10px;font-weight:500;color:#2855A4;">Sin datos cargados</div>
-        <div style="font-size:8px;color:#666;margin-top:2px;">Escaneá el QR y completá tu ficha</div>
-      </div>
-      `}
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;padding-top:4px;border-top:1px solid #eee;font-size:7px;color:#888;">
-        <span>Torneo 2026</span>
-        <span style="color:#2855A4;font-weight:500;">cdp.urquiza.com.ar</span>
+        ${tieneSalud ? `
+        <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:4px 8px;font-size:9px;">
+          <div>
+            <div style="color:#2E8B4A;font-size:7px;text-transform:uppercase;font-weight:500;">Grupo sanguíneo</div>
+            <div style="color:#1a1a1a;font-weight:500;font-size:10px;">${jugador.salud.grupoSanguineo || '—'}</div>
+          </div>
+          <div>
+            <div style="color:#2E8B4A;font-size:7px;text-transform:uppercase;font-weight:500;">Obra social</div>
+            <div style="color:#1a1a1a;font-weight:500;font-size:9px;">${jugador.salud.obraSocial || '—'}</div>
+          </div>
+          ${jugador.salud.condicionesMedicas ? `<div style="grid-column:span 2;"><div style="color:#2E8B4A;font-size:7px;text-transform:uppercase;font-weight:500;">Condiciones</div><div style="color:#1a1a1a;font-weight:500;font-size:9px;">${jugador.salud.condicionesMedicas}</div></div>` : ''}
+          ${jugador.salud.medicacion ? `<div style="grid-column:span 2;"><div style="color:#2E8B4A;font-size:7px;text-transform:uppercase;font-weight:500;">Medicación</div><div style="color:#1a1a1a;font-weight:500;font-size:9px;">${jugador.salud.medicacion}</div></div>` : ''}
+          <div style="grid-column:span 2;">
+            <div style="color:#2E8B4A;font-size:7px;text-transform:uppercase;font-weight:500;">Contacto emergencia</div>
+            <div style="color:#1a1a1a;font-weight:500;font-size:9px;">${jugador.salud.contactoNombre || '—'} ${jugador.salud.contactoTel ? '— ' + jugador.salud.contactoTel : ''}</div>
+          </div>
+        </div>
+        ` : `
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;">
+          <div style="width:36px;height:36px;border:2px dashed #2E8B4A;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:6px;">
+            <span style="font-size:18px;color:#2E8B4A;">?</span>
+          </div>
+          <div style="font-size:10px;font-weight:500;color:#2855A4;">Sin datos cargados</div>
+          <div style="font-size:8px;color:#666;margin-top:2px;">Escaneá el QR y completá tu ficha</div>
+        </div>
+        `}
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;padding-top:4px;border-top:1px solid #eee;font-size:7px;color:#888;">
+          <span>Torneo 2026</span>
+          <span style="color:#2855A4;font-weight:500;">cdp.urquiza.com.ar</span>
+        </div>
       </div>
     </div>
   `;
@@ -6838,9 +6840,9 @@ async function generarCarnetsEquipo(equipoId) {
         <title>Carnets ${equipo.nombre}</title>
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
         <style>
-          @page { size: A4; margin: 10mm; }
-          body { font-family: Inter, sans-serif; }
-          .page { display: flex; flex-wrap: wrap; justify-content: center; }
+          @page { size: A4; margin: 5mm; }
+          body { font-family: Inter, sans-serif; margin: 0; padding: 0; }
+          .page { display: flex; flex-wrap: wrap; justify-content: center; align-content: flex-start; }
           @media print {
             .no-print { display: none; }
           }
