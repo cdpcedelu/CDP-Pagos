@@ -411,7 +411,17 @@
 
       // Estudio médico
       let estudioHtml = '';
-      if (estudioMedico) {
+      const requiereEstudio = data.requiereEstudio !== false; // Default true si no viene
+      
+      if (!requiereEstudio) {
+        estudioHtml = `
+          <div class="info-row">
+            <span class="info-label">Estado</span>
+            <span class="info-value" style="color:var(--verde);">No requerido</span>
+          </div>
+          <div style="font-size:0.75rem;color:var(--gris2);margin-top:4px;">Menores de 40 en Libres no requieren estudio médico</div>
+        `;
+      } else if (estudioMedico) {
         const estadoEM = estudioMedico.estado || 'Sin presentar';
         estudioHtml = `
           <div class="info-row">
