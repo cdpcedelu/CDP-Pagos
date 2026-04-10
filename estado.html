@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<!-- CDP Estado del Jugador — v1.0 — 2026-04-09 16:00 ARG -->
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Mi Estado | Club de Profesionales</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --azul: #2855A4;
+      --verde: #2E8B4A;
+      --rojo: #dc2626;
+      --amarillo: #f59e0b;
+      --gris0: #f8f9fa;
+      --gris1: #e9ecef;
+      --gris2: #adb5bd;
+      --gris3: #6c757d;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: linear-gradient(135deg, #1e3a5f 0%, #2855A4 50%, #2E8B4A 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container {
+      max-width: 420px;
+      margin: 0 auto;
+    }
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    }
+    .header {
+      text-align: center;
+      padding: 20px 0 10px;
+    }
+    .logo {
+      width: 70px;
+      height: 70px;
+      margin: 0 auto 12px;
+      background: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      overflow: hidden;
+    }
+    .logo img {
+      width: 60px;
+      height: 60px;
+      object-fit: contain;
+    }
+    .header h1 {
+      color: white;
+      font-size: 1.3rem;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .header p {
+      color: rgba(255,255,255,0.8);
+      font-size: 0.85rem;
+    }
+    .player-name {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--azul);
+      margin-bottom: 4px;
+    }
+    .player-info {
+      font-size: 0.85rem;
+      color: var(--gris3);
+      margin-bottom: 16px;
+    }
+    .player-info span {
+      display: inline-block;
+      margin-right: 12px;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      margin-bottom: 8px;
+    }
+    .status-badge.habilitado {
+      background: #dcfce7;
+      color: #15803d;
+    }
+    .status-badge.inhabilitado {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+    .status-detail {
+      font-size: 0.8rem;
+      color: var(--gris3);
+    }
+    .section-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--gris3);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .pagos-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .pago-item {
+      text-align: center;
+      padding: 10px 6px;
+      border-radius: 8px;
+      background: var(--gris0);
+    }
+    .pago-item.aprobado { background: #dcfce7; }
+    .pago-item.pendiente { background: #fef9c3; }
+    .pago-item.rechazado { background: #fee2e2; }
+    .pago-mes {
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--gris3);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .pago-estado {
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .pago-item.aprobado .pago-estado { color: #15803d; }
+    .pago-item.pendiente .pago-estado { color: #b45309; }
+    .pago-item.rechazado .pago-estado { color: #b91c1c; }
+    .pago-item .pago-estado { color: var(--gris2); }
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--gris1);
+      font-size: 0.9rem;
+    }
+    .info-row:last-child { border-bottom: none; }
+    .info-label { color: var(--gris3); }
+    .info-value { font-weight: 500; color: #1a1a1a; }
+    .salud-card {
+      background: linear-gradient(135deg, #fee2e2 0%, #fef2f2 100%);
+      border: 1px solid #fecaca;
+    }
+    .salud-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .salud-icon {
+      width: 28px;
+      height: 28px;
+      background: #dc2626;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 16px;
+      font-weight: 700;
+    }
+    .salud-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #b91c1c;
+    }
+    .salud-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .salud-item {
+      background: white;
+      padding: 10px;
+      border-radius: 8px;
+    }
+    .salud-item.full { grid-column: span 2; }
+    .salud-item-label {
+      font-size: 0.7rem;
+      color: var(--gris3);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      margin-bottom: 4px;
+    }
+    .salud-item-value {
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: #1a1a1a;
+    }
+    .empty-salud {
+      text-align: center;
+      padding: 20px;
+      color: var(--gris3);
+    }
+    .empty-salud-icon {
+      font-size: 2rem;
+      margin-bottom: 8px;
+    }
+    .loading {
+      text-align: center;
+      padding: 60px 20px;
+      color: white;
+    }
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .error {
+      text-align: center;
+      padding: 40px 20px;
+    }
+    .error-icon {
+      font-size: 3rem;
+      margin-bottom: 12px;
+    }
+    .error h2 {
+      color: var(--azul);
+      margin-bottom: 8px;
+    }
+    .error p {
+      color: var(--gris3);
+      font-size: 0.9rem;
+    }
+    .footer {
+      text-align: center;
+      padding: 16px;
+      color: rgba(255,255,255,0.6);
+      font-size: 0.75rem;
+    }
+    .sancion-badge {
+      background: #fef3c7;
+      border: 1px solid #fcd34d;
+      padding: 12px;
+      border-radius: 10px;
+      margin-top: 12px;
+    }
+    .sancion-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #92400e;
+      margin-bottom: 4px;
+    }
+    .sancion-detail {
+      font-size: 0.8rem;
+      color: #a16207;
+    }
+    .ultima-carga {
+      font-size: 0.75rem;
+      color: var(--gris2);
+      text-align: right;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">
+        <img src="https://gr10-cdu.github.io/CDP/logo_cdp.png" alt="CDP" onerror="this.style.display='none';this.parentElement.innerHTML='<span style=\"font-weight:700;color:#2855A4;font-size:1.2rem\">CDP</span>'">
+      </div>
+      <h1>Club de Profesionales</h1>
+      <p>Justo José de Urquiza</p>
+    </div>
+
+    <div id="content">
+      <div class="loading">
+        <div class="spinner"></div>
+        <p>Cargando tu estado...</p>
+      </div>
+    </div>
+
+    <div class="footer">
+      Torneo 2026 — Concepción del Uruguay
+    </div>
+  </div>
+
+  <script>
+    const CONFIG = {
+      SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwAr254Oem8RMTZcscDBRAhULTnrimG1o-LGyF2_iYKON-3e5zElJsNKpKLFoC9yY_2/exec'
+    };
+
+    const MESES_CORTO = {
+      'Enero': 'ENE', 'Febrero': 'FEB', 'Marzo': 'MAR', 'Abril': 'ABR',
+      'Mayo': 'MAY', 'Junio': 'JUN', 'Julio': 'JUL', 'Agosto': 'AGO',
+      'Septiembre': 'SEP', 'Octubre': 'OCT', 'Noviembre': 'NOV', 'Diciembre': 'DIC'
+    };
+
+    async function cargarEstado() {
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get('t') || params.get('token');
+
+      if (!token) {
+        mostrarError('Token no encontrado', 'Escaneá el QR de tu carnet para ver tu estado.');
+        return;
+      }
+
+      try {
+        const url = `${CONFIG.SCRIPT_URL}?accion=getEstadoJugador&t=${encodeURIComponent(token)}`;
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (!data.ok) {
+          mostrarError('Enlace inválido', data.msg || 'El enlace no es válido o expiró.');
+          return;
+        }
+
+        renderEstado(data);
+      } catch (e) {
+        mostrarError('Error de conexión', 'No pudimos cargar tu estado. Intentá de nuevo.');
+      }
+    }
+
+    function mostrarError(titulo, mensaje) {
+      document.getElementById('content').innerHTML = `
+        <div class="card error">
+          <div class="error-icon">⚠️</div>
+          <h2>${titulo}</h2>
+          <p>${mensaje}</p>
+        </div>
+      `;
+    }
+
+    function renderEstado(data) {
+      const { jugador, habilitacion, pagos, ultimaCarga, estudioMedico, sancion, fichaSalud } = data;
+
+      // Estado de habilitación
+      const esHabilitado = habilitacion.estado === 'Habilitado';
+      const statusClass = esHabilitado ? 'habilitado' : 'inhabilitado';
+      const statusIcon = esHabilitado ? '✓' : '✗';
+
+      // Pagos HTML
+      let pagosHtml = '';
+      Object.keys(pagos).forEach(mes => {
+        const estado = pagos[mes];
+        let clase = '';
+        let texto = '—';
+        if (estado === 'Aprobado') { clase = 'aprobado'; texto = '✓'; }
+        else if (estado === 'Pendiente') { clase = 'pendiente'; texto = '⏳'; }
+        else if (estado === 'Rechazado') { clase = 'rechazado'; texto = '✗'; }
+        pagosHtml += `
+          <div class="pago-item ${clase}">
+            <div class="pago-mes">${MESES_CORTO[mes] || mes}</div>
+            <div class="pago-estado">${texto}</div>
+          </div>
+        `;
+      });
+
+      // Última carga
+      let ultimaCargaHtml = '';
+      if (ultimaCarga) {
+        const fecha = new Date(ultimaCarga);
+        ultimaCargaHtml = `<div class="ultima-carga">Última carga: ${fecha.toLocaleDateString('es-AR')}</div>`;
+      }
+
+      // Sanción
+      let sancionHtml = '';
+      if (sancion) {
+        sancionHtml = `
+          <div class="sancion-badge">
+            <div class="sancion-title">🚫 Sanción deportiva</div>
+            <div class="sancion-detail">${sancion.partidos || ''} ${sancion.fechaHab ? '· Habilitado desde: ' + sancion.fechaHab : ''}</div>
+          </div>
+        `;
+      }
+
+      // Estudio médico
+      let estudioHtml = '';
+      if (estudioMedico) {
+        const estadoEM = estudioMedico.estado || 'Sin presentar';
+        estudioHtml = `
+          <div class="info-row">
+            <span class="info-label">Estado</span>
+            <span class="info-value">${estadoEM}</span>
+          </div>
+        `;
+        if (estudioMedico.fechaVencimiento) {
+          estudioHtml += `
+            <div class="info-row">
+              <span class="info-label">Vencimiento</span>
+              <span class="info-value">${estudioMedico.fechaVencimiento}</span>
+            </div>
+          `;
+        }
+      } else {
+        estudioHtml = `
+          <div class="info-row">
+            <span class="info-label">Estado</span>
+            <span class="info-value" style="color:var(--gris2)">Sin presentar</span>
+          </div>
+        `;
+      }
+
+      // Ficha de salud
+      let saludHtml = '';
+      if (fichaSalud && (fichaSalud.grupoSanguineo || fichaSalud.contactoNombre)) {
+        saludHtml = `
+          <div class="card salud-card">
+            <div class="salud-header">
+              <div class="salud-icon">+</div>
+              <div class="salud-title">Ficha de salud</div>
+            </div>
+            <div class="salud-grid">
+              <div class="salud-item">
+                <div class="salud-item-label">Grupo sanguíneo</div>
+                <div class="salud-item-value">${fichaSalud.grupoSanguineo || '—'}</div>
+              </div>
+              <div class="salud-item">
+                <div class="salud-item-label">Obra social</div>
+                <div class="salud-item-value">${fichaSalud.obraSocial || '—'}</div>
+              </div>
+              ${fichaSalud.condicionesMedicas ? `
+              <div class="salud-item full">
+                <div class="salud-item-label">Condiciones médicas</div>
+                <div class="salud-item-value">${fichaSalud.condicionesMedicas}</div>
+              </div>
+              ` : ''}
+              ${fichaSalud.medicacion ? `
+              <div class="salud-item full">
+                <div class="salud-item-label">Medicación</div>
+                <div class="salud-item-value">${fichaSalud.medicacion}</div>
+              </div>
+              ` : ''}
+              <div class="salud-item full">
+                <div class="salud-item-label">Contacto de emergencia</div>
+                <div class="salud-item-value">${fichaSalud.contactoNombre || '—'} ${fichaSalud.contactoTel ? '— ' + fichaSalud.contactoTel : ''}</div>
+              </div>
+            </div>
+          </div>
+        `;
+      } else {
+        saludHtml = `
+          <div class="card salud-card">
+            <div class="salud-header">
+              <div class="salud-icon">+</div>
+              <div class="salud-title">Ficha de salud</div>
+            </div>
+            <div class="empty-salud">
+              <div class="empty-salud-icon">📋</div>
+              <p>No completaste tu ficha de salud.<br>Pedile a tu delegado que la cargue.</p>
+            </div>
+          </div>
+        `;
+      }
+
+      // Render completo
+      document.getElementById('content').innerHTML = `
+        <div class="card">
+          <div class="player-name">${jugador.nombre}</div>
+          <div class="player-info">
+            <span>DNI ${jugador.dni || '—'}</span>
+            <span>${jugador.equipo}</span>
+            <span>${jugador.categoria}</span>
+          </div>
+          
+          <div class="status-badge ${statusClass}">
+            <span>${statusIcon}</span>
+            <span>${habilitacion.estado}</span>
+          </div>
+          ${habilitacion.detalle ? `<div class="status-detail">${habilitacion.detalle}</div>` : ''}
+          ${sancionHtml}
+        </div>
+
+        <div class="card">
+          <div class="section-title">💰 Pagos de cuota</div>
+          <div class="pagos-grid">
+            ${pagosHtml}
+          </div>
+          ${ultimaCargaHtml}
+        </div>
+
+        <div class="card">
+          <div class="section-title">🏥 Estudio médico</div>
+          ${estudioHtml}
+        </div>
+
+        ${saludHtml}
+      `;
+    }
+
+    // Iniciar
+    cargarEstado();
+  </script>
+</body>
+</html>
