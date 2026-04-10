@@ -4158,32 +4158,59 @@ async function confirmarBajaJugador() {
 
 async function renderPlanillas() {
   const cnt = document.getElementById('main-content');
+  cnt.innerHTML = `
+    <div class="card">
+      <div style="display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid var(--gris1);">
+        <button class="planillas-tab active" onclick="switchPlanillasTab('planillas')" id="tab-plan-planillas">📄 Planillas de Partido</button>
+        <button class="planillas-tab" onclick="switchPlanillasTab('carnets')" id="tab-plan-carnets">🪪 Carnets Digitales</button>
+      </div>
+      <style>
+        .planillas-tab { padding: 10px 20px; border: none; background: none; cursor: pointer; font-size: 0.95rem; color: var(--gris3); border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.2s; }
+        .planillas-tab:hover { color: var(--azul); }
+        .planillas-tab.active { color: var(--azul2); border-bottom-color: var(--azul2); font-weight: 600; }
+      </style>
+      <div id="planillas-content">
+        <div class="loading"><div class="spinner"></div> Cargando...</div>
+      </div>
+    </div>
+  `;
+  await renderPlanillasPartidos();
+}
+
+async function switchPlanillasTab(tab) {
+  document.querySelectorAll('.planillas-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(tab === 'planillas' ? 'tab-plan-planillas' : 'tab-plan-carnets').classList.add('active');
+  if (tab === 'planillas') {
+    await renderPlanillasPartidos();
+  } else {
+    await renderCarnetsAdmin();
+  }
+}
+
+async function renderPlanillasPartidos() {
+  const cnt = document.getElementById('planillas-content');
   cnt.innerHTML = '<div class="loading"><div class="spinner"></div> Cargando fixture...</div>';
 
   try {
     const data = await api('getFixture');
     if (!data.ok) {
       cnt.innerHTML = `
-        <div class="card">
-          <div class="card-title">📄 Planillas de Partido</div>
-          <div class="empty" style="padding:32px 20px">
-            <div class="empty-icon">⚠️</div>
-            <p>${data.msg}</p>
-            <p style="font-size:0.8rem;color:var(--gris3);margin-top:8px">
-              Creá una pestaña llamada <strong>"Fixture"</strong> en el Google Sheet con las columnas:<br>
-              <code style="background:var(--gris0);padding:2px 6px;border-radius:4px;font-size:0.75rem">
-                FechaNro | Torneo | Categoría | Día | Fecha | Hora | Cancha | Equipo Local | Equipo Visitante | Resultado | Observaciones
-              </code>
-            </p>
-          </div>
+        <div class="empty" style="padding:32px 20px">
+          <div class="empty-icon">⚠️</div>
+          <p>${data.msg}</p>
+          <p style="font-size:0.8rem;color:var(--gris3);margin-top:8px">
+            Creá una pestaña llamada <strong>"Fixture"</strong> en el Google Sheet con las columnas:<br>
+            <code style="background:var(--gris0);padding:2px 6px;border-radius:4px;font-size:0.75rem">
+              FechaNro | Torneo | Categoría | Día | Fecha | Hora | Cancha | Equipo Local | Equipo Visitante | Resultado | Observaciones
+            </code>
+          </p>
         </div>`;
       return;
     }
 
     const partidos = data.partidos;
     if (!partidos.length) {
-      cnt.innerHTML = `<div class="card"><div class="card-title">📄 Planillas de Partido</div>
-        <div class="empty"><div class="empty-icon">📅</div>No hay partidos en el fixture.</div></div>`;
+      cnt.innerHTML = `<div class="empty"><div class="empty-icon">📅</div>No hay partidos en el fixture.</div>`;
       return;
     }
 
@@ -4196,21 +4223,19 @@ async function renderPlanillas() {
     });
 
     let html = `
-      <div class="card">
-        <div class="card-title">📄 Planillas de Partido</div>
-        <p style="font-size:0.82rem;color:var(--gris3);margin-bottom:16px">
-          Seleccioná los partidos y generá todas las planillas juntas para imprimir.
-        </p>
-        <div class="fixture-filtros" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
-          <select onchange="filtrarFixture(this.value)" id="filtro-fecha-nro">
-            <option value="">Todas las fechas</option>
-            ${Object.keys(grupos).map(g => `<option value="${g}">${g}</option>`).join('')}
-          </select>
-          <button class="btn-sm btn-ver" onclick="seleccionarTodas(true)">☑ Todas</button>
-          <button class="btn-sm btn-ver" onclick="seleccionarTodas(false)">☐ Ninguna</button>
-          <button class="btn-sm btn-cargar" id="btn-imprimir-todas" onclick="imprimirSeleccionadas()" style="margin-left:auto">🖨️ Imprimir seleccionadas</button>
-        </div>
-        <div id="fixture-lista">`;
+      <p style="font-size:0.82rem;color:var(--gris3);margin-bottom:16px">
+        Seleccioná los partidos y generá todas las planillas juntas para imprimir.
+      </p>
+      <div class="fixture-filtros" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+        <select onchange="filtrarFixture(this.value)" id="filtro-fecha-nro">
+          <option value="">Todas las fechas</option>
+          ${Object.keys(grupos).map(g => `<option value="${g}">${g}</option>`).join('')}
+        </select>
+        <button class="btn-sm btn-ver" onclick="seleccionarTodas(true)">☑ Todas</button>
+        <button class="btn-sm btn-ver" onclick="seleccionarTodas(false)">☐ Ninguna</button>
+        <button class="btn-sm btn-cargar" id="btn-imprimir-todas" onclick="imprimirSeleccionadas()" style="margin-left:auto">🖨️ Imprimir seleccionadas</button>
+      </div>
+      <div id="fixture-lista">`;
 
     Object.entries(grupos).forEach(([fechaNro, pts]) => {
       html += `<div class="fixture-grupo" data-fecha="${fechaNro}">
@@ -4246,7 +4271,7 @@ async function renderPlanillas() {
       html += '</div>';
     });
 
-    html += '</div></div>';
+    html += '</div>';
     cnt.innerHTML = html;
 
     // Auto-seleccionar la primera fecha que no tenga todos los resultados completos
@@ -4261,7 +4286,7 @@ async function renderPlanillas() {
       filtrarFixture(fechaIncompleta);
     }
   } catch(e) {
-    cnt.innerHTML = `<div class="card"><div class="empty"><div class="empty-icon">⚠️</div>Error: ${e.message}</div></div>`;
+    cnt.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div>Error: ${e.message}</div>`;
   }
 }
 
@@ -4277,6 +4302,266 @@ function seleccionarTodas(checked) {
     const card = cb.closest('.fixture-grupo');
     if (!card || card.style.display !== 'none') cb.checked = checked;
   });
+}
+
+// ══════════════════════════════════════════════════════════════════
+// CARNETS ADMIN - Impresión de carnets para administrador
+// ══════════════════════════════════════════════════════════════════
+
+async function renderCarnetsAdmin() {
+  const cnt = document.getElementById('planillas-content');
+  cnt.innerHTML = '<div class="loading"><div class="spinner"></div> Cargando equipos...</div>';
+
+  try {
+    // Cargar lista de equipos
+    const dataEq = await api('getEquipos');
+    if (!dataEq.ok) {
+      cnt.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div>${dataEq.msg}</div>`;
+      return;
+    }
+
+    const equipos = dataEq.equipos || [];
+    
+    cnt.innerHTML = `
+      <p style="font-size:0.82rem;color:var(--gris3);margin-bottom:16px">
+        Seleccioná equipos para imprimir carnets de todos sus jugadores, o elegí un equipo para seleccionar jugadores específicos.
+      </p>
+      
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px">
+        <button class="btn-sm btn-ver" onclick="seleccionarTodosEquiposCarnets(true)">☑ Todos</button>
+        <button class="btn-sm btn-ver" onclick="seleccionarTodosEquiposCarnets(false)">☐ Ninguno</button>
+        <span style="flex:1"></span>
+        <span style="color:var(--gris3);font-size:0.85rem;" id="carnets-equipos-count">${equipos.length} equipos</span>
+      </div>
+
+      <div style="max-height:400px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px;" id="carnets-equipos-lista">
+        ${equipos.map((eq, idx) => `
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:${idx%2===0?'#f8fafc':'white'};border-bottom:1px solid #f1f5f9;">
+            <input type="checkbox" class="carnet-equipo-check" data-id="${eq.id}" data-nombre="${eq.nombre}" style="width:18px;height:18px;accent-color:#2855A4;">
+            <span style="flex:1;font-weight:500;">${eq.nombre}</span>
+            <span style="color:var(--gris3);font-size:0.8rem;background:var(--gris0);padding:2px 8px;border-radius:4px;">${eq.categoria || ''}</span>
+            <button class="btn-sm btn-ver" onclick="seleccionarJugadoresEquipo('${eq.id}', '${eq.nombre}')" style="font-size:0.75rem;padding:4px 10px;">
+              👥 Seleccionar jugadores
+            </button>
+          </div>
+        `).join('')}
+      </div>
+
+      <div style="margin-top:20px;display:flex;gap:12px;justify-content:flex-end;">
+        <button class="btn-sm btn-aprobar" onclick="imprimirCarnetsEquiposSeleccionados()" style="padding:10px 24px;font-size:1rem;" id="btn-imprimir-carnets-admin">
+          🖨️ Imprimir Carnets de Equipos Seleccionados
+        </button>
+      </div>
+    `;
+
+    // Guardar equipos para uso posterior
+    window._carnetsEquiposData = equipos;
+
+    // Actualizar contador
+    document.querySelectorAll('.carnet-equipo-check').forEach(cb => {
+      cb.addEventListener('change', () => {
+        const sel = document.querySelectorAll('.carnet-equipo-check:checked').length;
+        document.getElementById('carnets-equipos-count').textContent = `${sel} de ${equipos.length} seleccionados`;
+      });
+    });
+
+  } catch(e) {
+    cnt.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div>Error: ${e.message}</div>`;
+  }
+}
+
+function seleccionarTodosEquiposCarnets(checked) {
+  document.querySelectorAll('.carnet-equipo-check').forEach(cb => cb.checked = checked);
+  const total = document.querySelectorAll('.carnet-equipo-check').length;
+  const sel = checked ? total : 0;
+  document.getElementById('carnets-equipos-count').textContent = `${sel} de ${total} seleccionados`;
+}
+
+async function seleccionarJugadoresEquipo(equipoId, equipoNombre) {
+  const cnt = document.getElementById('planillas-content');
+  cnt.innerHTML = '<div class="loading"><div class="spinner"></div> Cargando jugadores...</div>';
+
+  try {
+    const data = await api('getTokensEquipo', { equipoId });
+    if (!data.ok) {
+      showToast('Error: ' + data.msg, 'error');
+      await renderCarnetsAdmin();
+      return;
+    }
+
+    const { equipo, jugadores } = data;
+    
+    cnt.innerHTML = `
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+        <button class="btn-sm btn-ver" onclick="renderCarnetsAdmin()">← Volver a equipos</button>
+        <span style="font-weight:600;font-size:1.1rem;">🪪 ${equipo.nombre} — ${equipo.categoria}</span>
+      </div>
+
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px">
+        <button class="btn-sm btn-ver" onclick="document.querySelectorAll('.carnet-jug-check').forEach(c=>c.checked=true);actualizarContadorJugadores()">☑ Todos</button>
+        <button class="btn-sm btn-ver" onclick="document.querySelectorAll('.carnet-jug-check').forEach(c=>c.checked=false);actualizarContadorJugadores()">☐ Ninguno</button>
+        <span style="flex:1"></span>
+        <span style="color:var(--gris3);font-size:0.85rem;" id="carnets-jug-count">${jugadores.length} jugadores</span>
+      </div>
+
+      <div style="max-height:400px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px;" id="carnets-jug-lista">
+        ${jugadores.map((j, idx) => `
+          <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:${idx%2===0?'#f8fafc':'white'};cursor:pointer;">
+            <input type="checkbox" class="carnet-jug-check" data-idx="${idx}" checked style="width:18px;height:18px;accent-color:#2855A4;">
+            <span style="flex:1;font-weight:500;">${j.nombre}</span>
+            <span style="color:var(--gris3);font-size:0.85rem;">DNI ${j.dni || '—'}</span>
+            ${j.tieneSalud ? '<span style="background:#dcfce7;color:#16a34a;font-size:0.7rem;padding:2px 6px;border-radius:4px;">Salud ✓</span>' : '<span style="background:#fef2f2;color:#dc2626;font-size:0.7rem;padding:2px 6px;border-radius:4px;">Sin salud</span>'}
+          </label>
+        `).join('')}
+      </div>
+
+      <div style="margin-top:20px;display:flex;gap:12px;justify-content:flex-end;">
+        <button class="btn-sm btn-aprobar" onclick="imprimirCarnetsJugadoresSeleccionados()" style="padding:10px 24px;font-size:1rem;" id="btn-imprimir-carnets-jug">
+          🖨️ Imprimir Carnets Seleccionados
+        </button>
+      </div>
+    `;
+
+    // Guardar datos
+    window._carnetsJugadoresData = { equipo, jugadores };
+
+    // Listeners para contador
+    document.querySelectorAll('.carnet-jug-check').forEach(cb => {
+      cb.addEventListener('change', actualizarContadorJugadores);
+    });
+
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+    await renderCarnetsAdmin();
+  }
+}
+
+function actualizarContadorJugadores() {
+  const total = document.querySelectorAll('.carnet-jug-check').length;
+  const sel = document.querySelectorAll('.carnet-jug-check:checked').length;
+  document.getElementById('carnets-jug-count').textContent = `${sel} de ${total} seleccionados`;
+}
+
+async function imprimirCarnetsEquiposSeleccionados() {
+  const checks = document.querySelectorAll('.carnet-equipo-check:checked');
+  if (!checks.length) {
+    showToast('Seleccioná al menos un equipo', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('btn-imprimir-carnets-admin');
+  const btnText = btn.innerHTML;
+  btn.innerHTML = '⏳ Generando...';
+  btn.disabled = true;
+
+  try {
+    // Obtener tokens de todos los equipos seleccionados
+    const equiposIds = Array.from(checks).map(c => c.dataset.id);
+    const allJugadores = [];
+
+    for (const eqId of equiposIds) {
+      const data = await api('getTokensEquipo', { equipoId: eqId });
+      if (data.ok) {
+        data.jugadores.forEach(j => {
+          allJugadores.push({ ...j, equipoNombre: data.equipo.nombre, equipoCategoria: data.equipo.categoria });
+        });
+      }
+    }
+
+    if (!allJugadores.length) {
+      showToast('No se encontraron jugadores', 'error');
+      btn.innerHTML = btnText;
+      btn.disabled = false;
+      return;
+    }
+
+    // Generar carnets
+    await generarVentanaCarnets(allJugadores, `${equiposIds.length} equipos`);
+
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  } finally {
+    btn.innerHTML = btnText;
+    btn.disabled = false;
+  }
+}
+
+async function imprimirCarnetsJugadoresSeleccionados() {
+  if (!window._carnetsJugadoresData) {
+    showToast('Error: datos no disponibles', 'error');
+    return;
+  }
+
+  const { equipo, jugadores } = window._carnetsJugadoresData;
+  const checks = document.querySelectorAll('.carnet-jug-check:checked');
+  const indices = Array.from(checks).map(c => parseInt(c.dataset.idx));
+
+  if (!indices.length) {
+    showToast('Seleccioná al menos un jugador', 'error');
+    return;
+  }
+
+  const jugadoresSeleccionados = indices.map(i => ({
+    ...jugadores[i],
+    equipoNombre: equipo.nombre,
+    equipoCategoria: equipo.categoria
+  }));
+
+  const btn = document.getElementById('btn-imprimir-carnets-jug');
+  const btnText = btn.innerHTML;
+  btn.innerHTML = '⏳ Generando...';
+  btn.disabled = true;
+
+  try {
+    await generarVentanaCarnets(jugadoresSeleccionados, equipo.nombre);
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  } finally {
+    btn.innerHTML = btnText;
+    btn.disabled = false;
+  }
+}
+
+async function generarVentanaCarnets(jugadores, titulo) {
+  let carnetsHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Carnets ${titulo}</title>
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+      <style>
+        @page { size: A4; margin: 5mm; }
+        body { font-family: Inter, sans-serif; margin: 0; padding: 0; }
+        .page { display: flex; flex-wrap: wrap; justify-content: center; align-content: flex-start; }
+        @media print { .no-print { display: none; } }
+      </style>
+    </head>
+    <body>
+      <div class="no-print" style="text-align:center;padding:20px;background:#f0f0f0;">
+        <h2>Carnets — ${titulo}</h2>
+        <p>${jugadores.length} carnets</p>
+        <button onclick="window.print()" style="padding:10px 20px;font-size:16px;cursor:pointer;">🖨️ Imprimir</button>
+      </div>
+      <div class="page">
+  `;
+
+  for (const jug of jugadores) {
+    const url = generarUrlEstado(jug.token);
+    const qr = await generarQR(url, 150);
+    const carnet = await generarCarnetHTML(jug, { nombre: jug.equipoNombre, categoria: jug.equipoCategoria }, qr);
+    carnetsHtml += carnet;
+  }
+
+  carnetsHtml += `
+      </div>
+    </body>
+    </html>
+  `;
+
+  const win = window.open('', '_blank');
+  win.document.write(carnetsHtml);
+  win.document.close();
 }
 
 async function imprimirSeleccionadas() {
