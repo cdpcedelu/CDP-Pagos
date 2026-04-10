@@ -38,41 +38,25 @@
     }
     .header {
       text-align: center;
-      padding: 20px 0 10px;
-    }
-    .logo {
-      width: 70px;
-      height: 70px;
-      margin: 0 auto 12px;
-      background: white;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-      overflow: hidden;
-    }
-    .logo img {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-      object-position: center;
+      padding: 30px 0 20px;
     }
     .header h1 {
       color: white;
-      font-size: 1.3rem;
-      font-weight: 600;
-      margin-bottom: 4px;
+      font-size: 1.8rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+      letter-spacing: 0.5px;
     }
     .header p {
-      color: rgba(255,255,255,0.8);
-      font-size: 0.85rem;
+      color: rgba(255,255,255,0.85);
+      font-size: 1.1rem;
+      font-weight: 500;
     }
     .player-name {
-      font-size: 1.4rem;
+      font-size: 1.5rem;
       font-weight: 700;
       color: var(--azul);
-      margin-bottom: 4px;
+      text-align: center;
     }
     .player-info {
       font-size: 0.85rem;
@@ -279,9 +263,6 @@
 <body>
   <div class="container">
     <div class="header">
-      <div class="logo">
-        <img src="https://cdpcedelu.github.io/CDP-Pagos/Logo%20CDP2026.png" alt="CDP" onerror="this.style.display='none';this.parentElement.innerHTML='<span style=\"font-weight:700;color:#2855A4;font-size:1.2rem\">CDP</span>'">
-      </div>
       <h1>Club de Profesionales</h1>
       <p>Justo José de Urquiza</p>
     </div>
@@ -347,8 +328,21 @@
     function renderEstado(data) {
       const { jugador, equiposData, estudioMedico, sancion, fichaSalud } = data;
 
-      // Badge IC si corresponde
-      const icBadge = jugador.ic ? '<span style="background:#f0fdf4;color:#15803d;font-size:0.7rem;padding:2px 6px;border-radius:4px;margin-left:6px;font-weight:600;">IC</span>' : '';
+      // Calcular edad
+      let edadHtml = '';
+      if (jugador.fechaNac) {
+        const partes = jugador.fechaNac.split('/');
+        if (partes.length === 3) {
+          const fechaNac = new Date(partes[2], partes[1] - 1, partes[0]);
+          const hoy = new Date();
+          let edad = hoy.getFullYear() - fechaNac.getFullYear();
+          const m = hoy.getMonth() - fechaNac.getMonth();
+          if (m < 0 || (m === 0 && hoy.getDate() < fechaNac.getDate())) {
+            edad--;
+          }
+          edadHtml = `${edad} años`;
+        }
+      }
 
       // Sanción global
       let sancionHtml = '';
@@ -496,10 +490,11 @@
 
       // Render completo
       document.getElementById('content').innerHTML = `
-        <div class="card">
-          <div class="player-name">${jugador.nombre}${icBadge}</div>
-          <div class="player-info">
-            <span>DNI ${jugador.dni || '—'}</span>
+        <div class="card" style="text-align:center;">
+          <div class="player-name">${jugador.nombre}</div>
+          <div style="display:flex;flex-direction:column;gap:4px;margin-top:12px;color:var(--gris3);font-size:0.9rem;">
+            <div><span style="color:var(--gris2);">DNI</span> <span style="font-weight:500;color:#1a1a1a;">${jugador.dni || '—'}</span></div>
+            ${jugador.fechaNac ? `<div><span style="color:var(--gris2);">Nacimiento</span> <span style="font-weight:500;color:#1a1a1a;">${jugador.fechaNac}</span> ${edadHtml ? `<span style="color:var(--gris2);">·</span> <span style="font-weight:500;color:#1a1a1a;">${edadHtml}</span>` : ''}</div>` : ''}
           </div>
           ${sancionHtml}
         </div>
