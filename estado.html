@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- CDP Estado del Jugador — v1.0 — 2026-04-09 16:00 ARG -->
+<!-- CDP Estado del Jugador — v1.1 — 2026-04-10 09:40 ARG (+ soporte IC múltiples equipos) -->
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -279,7 +279,7 @@
   <div class="container">
     <div class="header">
       <div class="logo">
-        <img src="https://gr10-cdu.github.io/CDP/logo_cdp.png" alt="CDP" onerror="this.style.display='none';this.parentElement.innerHTML='<span style=\"font-weight:700;color:#2855A4;font-size:1.2rem\">CDP</span>'">
+        <img src="https://cdpcedelu.github.io/CDP-Pagos/Logo%20CDP2026.png" alt="CDP" onerror="this.style.display='none';this.parentElement.innerHTML='<span style=\"font-weight:700;color:#2855A4;font-size:1.2rem\">CDP</span>'">
       </div>
       <h1>Club de Profesionales</h1>
       <p>Justo José de Urquiza</p>
@@ -350,6 +350,19 @@
       const esHabilitado = habilitacion.estado === 'Habilitado';
       const statusClass = esHabilitado ? 'habilitado' : 'inhabilitado';
       const statusIcon = esHabilitado ? '✓' : '✗';
+
+      // Equipos (puede ser array para IC)
+      let equiposHtml = '';
+      if (jugador.equipos && jugador.equipos.length > 0) {
+        equiposHtml = jugador.equipos.map(eq => 
+          `<span>${eq.nombre} <small style="color:var(--gris2)">(${eq.categoria})</small></span>`
+        ).join(' · ');
+      } else {
+        equiposHtml = `<span>${jugador.equipo} <small style="color:var(--gris2)">(${jugador.categoria})</small></span>`;
+      }
+      
+      // Badge IC si corresponde
+      const icBadge = jugador.ic ? '<span style="background:#f0fdf4;color:#15803d;font-size:0.7rem;padding:2px 6px;border-radius:4px;margin-left:6px;font-weight:600;">IC</span>' : '';
 
       // Pagos HTML
       let pagosHtml = '';
@@ -468,11 +481,12 @@
       // Render completo
       document.getElementById('content').innerHTML = `
         <div class="card">
-          <div class="player-name">${jugador.nombre}</div>
+          <div class="player-name">${jugador.nombre}${icBadge}</div>
           <div class="player-info">
             <span>DNI ${jugador.dni || '—'}</span>
-            <span>${jugador.equipo}</span>
-            <span>${jugador.categoria}</span>
+          </div>
+          <div class="player-info" style="margin-bottom:12px;">
+            ${equiposHtml}
           </div>
           
           <div class="status-badge ${statusClass}">
