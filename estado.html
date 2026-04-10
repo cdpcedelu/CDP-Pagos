@@ -345,51 +345,12 @@
     }
 
     function renderEstado(data) {
-      const { jugador, habilitacion, pagos, ultimaCarga, estudioMedico, sancion, fichaSalud } = data;
+      const { jugador, equiposData, estudioMedico, sancion, fichaSalud } = data;
 
-      // Estado de habilitación
-      const esHabilitado = habilitacion.estado === 'Habilitado';
-      const statusClass = esHabilitado ? 'habilitado' : 'inhabilitado';
-      const statusIcon = esHabilitado ? '✓' : '✗';
-
-      // Equipos (puede ser array para IC)
-      let equiposHtml = '';
-      if (jugador.equipos && jugador.equipos.length > 0) {
-        equiposHtml = jugador.equipos.map(eq => 
-          `<span>${eq.nombre} <small style="color:var(--gris2)">(${eq.categoria})</small></span>`
-        ).join(' · ');
-      } else {
-        equiposHtml = `<span>${jugador.equipo} <small style="color:var(--gris2)">(${jugador.categoria})</small></span>`;
-      }
-      
       // Badge IC si corresponde
       const icBadge = jugador.ic ? '<span style="background:#f0fdf4;color:#15803d;font-size:0.7rem;padding:2px 6px;border-radius:4px;margin-left:6px;font-weight:600;">IC</span>' : '';
 
-      // Pagos HTML
-      let pagosHtml = '';
-      Object.keys(pagos).forEach(mes => {
-        const estado = pagos[mes];
-        let clase = '';
-        let texto = '—';
-        if (estado === 'Aprobado') { clase = 'aprobado'; texto = '✓'; }
-        else if (estado === 'Pendiente') { clase = 'pendiente'; texto = '⏳'; }
-        else if (estado === 'Rechazado') { clase = 'rechazado'; texto = '✗'; }
-        pagosHtml += `
-          <div class="pago-item ${clase}">
-            <div class="pago-mes">${MESES_CORTO[mes] || mes}</div>
-            <div class="pago-estado">${texto}</div>
-          </div>
-        `;
-      });
-
-      // Última carga
-      let ultimaCargaHtml = '';
-      if (ultimaCarga) {
-        const fecha = new Date(ultimaCarga);
-        ultimaCargaHtml = `<div class="ultima-carga">Última carga: ${fecha.toLocaleDateString('es-AR')}</div>`;
-      }
-
-      // Sanción
+      // Sanción global
       let sancionHtml = '';
       if (sancion) {
         sancionHtml = `
@@ -399,6 +360,60 @@
           </div>
         `;
       }
+
+      // Generar cards por equipo
+      let equiposHtml = '';
+      equiposData.forEach((eq, idx) => {
+        const esHabilitado = eq.habilitacion.estado === 'Habilitado';
+        const statusClass = esHabilitado ? 'habilitado' : 'inhabilitado';
+        const statusIcon = esHabilitado ? '✓' : '✗';
+
+        // Pagos de este equipo
+        let pagosHtml = '';
+        Object.keys(eq.pagos).forEach(mes => {
+          const estado = eq.pagos[mes];
+          let clase = '';
+          let texto = '—';
+          if (estado === 'Aprobado') { clase = 'aprobado'; texto = '✓'; }
+          else if (estado === 'Pendiente') { clase = 'pendiente'; texto = '⏳'; }
+          else if (estado === 'Rechazado') { clase = 'rechazado'; texto = '✗'; }
+          pagosHtml += `
+            <div class="pago-item ${clase}">
+              <div class="pago-mes">${MESES_CORTO[mes] || mes}</div>
+              <div class="pago-estado">${texto}</div>
+            </div>
+          `;
+        });
+
+        // Última carga
+        let ultimaCargaHtml = '';
+        if (eq.ultimaCarga) {
+          const fecha = new Date(eq.ultimaCarga);
+          ultimaCargaHtml = `<div class="ultima-carga">Última carga: ${fecha.toLocaleDateString('es-AR')}</div>`;
+        }
+
+        equiposHtml += `
+          <div class="card" style="border-left: 4px solid ${esHabilitado ? 'var(--verde)' : 'var(--rojo)'};">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+              <div>
+                <div style="font-weight:600;color:var(--azul);">${eq.equipo.nombre}</div>
+                <div style="font-size:0.8rem;color:var(--gris3);">${eq.equipo.categoria}</div>
+              </div>
+              <div class="status-badge ${statusClass}" style="margin:0;">
+                <span>${statusIcon}</span>
+                <span>${eq.habilitacion.estado}</span>
+              </div>
+            </div>
+            ${eq.habilitacion.detalle ? `<div class="status-detail" style="margin-bottom:12px;">${eq.habilitacion.detalle}</div>` : ''}
+            
+            <div class="section-title">💰 Pagos de cuota</div>
+            <div class="pagos-grid">
+              ${pagosHtml}
+            </div>
+            ${ultimaCargaHtml}
+          </div>
+        `;
+      });
 
       // Estudio médico
       let estudioHtml = '';
@@ -486,25 +501,10 @@
           <div class="player-info">
             <span>DNI ${jugador.dni || '—'}</span>
           </div>
-          <div class="player-info" style="margin-bottom:12px;">
-            ${equiposHtml}
-          </div>
-          
-          <div class="status-badge ${statusClass}">
-            <span>${statusIcon}</span>
-            <span>${habilitacion.estado}</span>
-          </div>
-          ${habilitacion.detalle ? `<div class="status-detail">${habilitacion.detalle}</div>` : ''}
           ${sancionHtml}
         </div>
 
-        <div class="card">
-          <div class="section-title">💰 Pagos de cuota</div>
-          <div class="pagos-grid">
-            ${pagosHtml}
-          </div>
-          ${ultimaCargaHtml}
-        </div>
+        ${equiposHtml}
 
         <div class="card">
           <div class="section-title">🏥 Estudio médico</div>
