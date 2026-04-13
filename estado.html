@@ -877,16 +877,32 @@
       let todosHabilitados = true;
       let algunDebeCuotas = false;
 
+      // Calcular qué mes debe tener pago
+      const hoy = new Date();
+      const dia = hoy.getDate();
+      const mesActual = hoy.getMonth(); // 0-11
+      
+      const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+                     'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+      
+      // Si estamos después del 10, debe tener el mes actual pago
+      // Si estamos hasta el 10, debe tener el mes anterior pago
+      let mesRequerido;
+      if (dia > 10) {
+        mesRequerido = MESES[mesActual];
+      } else {
+        mesRequerido = MESES[mesActual === 0 ? 11 : mesActual - 1];
+      }
+
       equiposData.forEach(eq => {
         if (eq.habilitacion.estado !== 'Habilitado') {
           todosHabilitados = false;
         }
-        // Verificar si hay pagos pendientes o rechazados
-        Object.values(eq.pagos).forEach(estado => {
-          if (estado === 'Pendiente' || estado === 'Rechazado' || estado === '') {
-            algunDebeCuotas = true;
-          }
-        });
+        // Verificar si tiene el mes requerido pago
+        const estadoMesRequerido = eq.pagos[mesRequerido];
+        if (estadoMesRequerido !== 'Aprobado') {
+          algunDebeCuotas = true;
+        }
       });
 
       return { activo: todosHabilitados, debeCuotas: algunDebeCuotas };
