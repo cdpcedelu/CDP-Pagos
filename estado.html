@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- CDP Credencial Digital — v2.0 — 2026-04-10 19:00 ARG -->
+<!-- CDP Credencial Digital — v2.1 — 2026-04-10 20:30 ARG -->
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -7,10 +7,35 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#1e3a5f">
-  <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icon-cdp.png">
   <meta name="apple-mobile-web-app-title" content="CDP">
   <title>Credencial | Club de Profesionales</title>
+  <script>
+    // Generar manifest dinámico con el token actual en la URL
+    (function() {
+      const currentUrl = window.location.href;
+      const manifest = {
+        "name": "CDP - Club de Profesionales",
+        "short_name": "CDP",
+        "description": "Credencial Digital",
+        "start_url": currentUrl,
+        "display": "standalone",
+        "background_color": "#1e3a5f",
+        "theme_color": "#2855A4",
+        "icons": [{
+          "src": "icon-cdp.png",
+          "sizes": "180x180",
+          "type": "image/png"
+        }]
+      };
+      const blob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
+      const manifestUrl = URL.createObjectURL(blob);
+      const link = document.createElement('link');
+      link.rel = 'manifest';
+      link.href = manifestUrl;
+      document.head.appendChild(link);
+    })();
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
@@ -368,11 +393,11 @@
       const params = new URLSearchParams(window.location.search);
       let token = params.get('t') || params.get('token');
 
-      // Si viene token en URL, guardarlo en localStorage
+      // Si viene token en URL, guardarlo como backup
       if (token) {
         try { localStorage.setItem('cdp_token', token); } catch(e) {}
       } else {
-        // Si no viene, intentar recuperar del localStorage
+        // Intentar recuperar del localStorage
         try { token = localStorage.getItem('cdp_token'); } catch(e) {}
       }
 
@@ -387,7 +412,6 @@
         const data = await res.json();
 
         if (!data.ok) {
-          // Si el token ya no es válido, limpiar localStorage
           try { localStorage.removeItem('cdp_token'); } catch(e) {}
           mostrarError('Enlace inválido', data.msg || 'El enlace no es válido o expiró.');
           return;
