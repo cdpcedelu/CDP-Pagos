@@ -1,16 +1,22 @@
 <!DOCTYPE html>
-<!-- CDP Estado del Jugador — v1.1 — 2026-04-10 09:40 ARG (+ soporte IC múltiples equipos) -->
+<!-- CDP Credencial Digital — v2.0 — 2026-04-10 19:00 ARG -->
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Mi Estado | Club de Profesionales</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#1e3a5f">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-cdp.png">
+  <meta name="apple-mobile-web-app-title" content="CDP">
+  <title>Credencial | Club de Profesionales</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
       --azul: #2855A4;
-      --verde: #2E8B4A;
+      --verde: #16a34a;
       --rojo: #dc2626;
       --amarillo: #f59e0b;
       --gris0: #f8f9fa;
@@ -52,43 +58,111 @@
       font-size: 1.1rem;
       font-weight: 500;
     }
-    .player-name {
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: var(--azul);
+
+    /* Credencial colapsada */
+    .credencial-card {
+      background: white;
+      border-radius: 20px;
+      padding: 28px 24px;
       text-align: center;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
     }
-    .player-info {
-      font-size: 0.85rem;
+    .credencial-nombre {
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: var(--azul);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .credencial-dni {
+      font-size: 1.1rem;
       color: var(--gris3);
-      margin-bottom: 16px;
+      margin-bottom: 24px;
     }
-    .player-info span {
-      display: inline-block;
-      margin-right: 12px;
-    }
-    .status-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 10px 16px;
-      border-radius: 10px;
+    .credencial-dni strong {
+      color: #1a1a1a;
       font-weight: 600;
-      font-size: 0.95rem;
+    }
+    
+    /* Badge grande */
+    .badge-grande {
+      padding: 20px 32px;
+      border-radius: 16px;
+      margin: 0 auto 20px;
+      max-width: 280px;
+    }
+    .badge-grande.activo {
+      background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+      border: 2px solid var(--verde);
+    }
+    .badge-grande.inactivo {
+      background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+      border: 2px solid var(--rojo);
+    }
+    .badge-icono {
+      font-size: 2.5rem;
       margin-bottom: 8px;
     }
-    .status-badge.habilitado {
-      background: #dcfce7;
-      color: #15803d;
+    .badge-titulo {
+      font-size: 1.4rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1px;
     }
-    .status-badge.inhabilitado {
-      background: #fee2e2;
-      color: #b91c1c;
+    .badge-grande.activo .badge-titulo { color: var(--verde); }
+    .badge-grande.inactivo .badge-titulo { color: var(--rojo); }
+    .badge-subtitulo {
+      font-size: 0.95rem;
+      font-weight: 500;
+      margin-top: 4px;
     }
-    .status-detail {
-      font-size: 0.8rem;
-      color: var(--gris3);
+    .badge-grande.activo .badge-subtitulo { color: #15803d; }
+    .badge-grande.inactivo .badge-subtitulo { color: #b91c1c; }
+
+    /* Botón ver más */
+    .btn-ver-mas {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 14px;
+      border: 2px solid var(--gris1);
+      border-radius: 12px;
+      background: var(--gris0);
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--azul);
+      cursor: pointer;
+      transition: all 0.2s;
     }
+    .btn-ver-mas:hover {
+      background: white;
+      border-color: var(--azul);
+    }
+    .btn-ver-mas .arrow {
+      transition: transform 0.3s;
+    }
+    .btn-ver-mas.expanded .arrow {
+      transform: rotate(180deg);
+    }
+
+    /* Contenido expandido */
+    .detalles {
+      display: none;
+      margin-top: 16px;
+    }
+    .detalles.visible {
+      display: block;
+      animation: slideDown 0.3s ease;
+    }
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Estilos del contenido detallado */
     .section-title {
       font-size: 0.75rem;
       font-weight: 600;
@@ -99,6 +173,23 @@
       display: flex;
       align-items: center;
       gap: 6px;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.85rem;
+    }
+    .status-badge.habilitado {
+      background: #dcfce7;
+      color: #15803d;
+    }
+    .status-badge.inhabilitado {
+      background: #fee2e2;
+      color: #b91c1c;
     }
     .pagos-grid {
       display: grid;
@@ -121,10 +212,7 @@
       text-transform: uppercase;
       margin-bottom: 4px;
     }
-    .pago-estado {
-      font-size: 0.75rem;
-      font-weight: 600;
-    }
+    .pago-estado { font-size: 0.75rem; font-weight: 600; }
     .pago-item.aprobado .pago-estado { color: #15803d; }
     .pago-item.pendiente .pago-estado { color: #b45309; }
     .pago-item.rechazado .pago-estado { color: #b91c1c; }
@@ -194,10 +282,6 @@
       padding: 20px;
       color: var(--gris3);
     }
-    .empty-salud-icon {
-      font-size: 2rem;
-      margin-bottom: 8px;
-    }
     .loading {
       text-align: center;
       padding: 60px 20px;
@@ -217,18 +301,9 @@
       text-align: center;
       padding: 40px 20px;
     }
-    .error-icon {
-      font-size: 3rem;
-      margin-bottom: 12px;
-    }
-    .error h2 {
-      color: var(--azul);
-      margin-bottom: 8px;
-    }
-    .error p {
-      color: var(--gris3);
-      font-size: 0.9rem;
-    }
+    .error-icon { font-size: 3rem; margin-bottom: 12px; }
+    .error h2 { color: var(--azul); margin-bottom: 8px; }
+    .error p { color: var(--gris3); font-size: 0.9rem; }
     .footer {
       text-align: center;
       padding: 16px;
@@ -240,23 +315,22 @@
       border: 1px solid #fcd34d;
       padding: 12px;
       border-radius: 10px;
-      margin-top: 12px;
+      margin-bottom: 12px;
     }
-    .sancion-title {
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: #92400e;
-      margin-bottom: 4px;
-    }
-    .sancion-detail {
-      font-size: 0.8rem;
-      color: #a16207;
-    }
+    .sancion-title { font-size: 0.85rem; font-weight: 600; color: #92400e; margin-bottom: 4px; }
+    .sancion-detail { font-size: 0.8rem; color: #a16207; }
     .ultima-carga {
       font-size: 0.75rem;
       color: var(--gris2);
       text-align: right;
       margin-top: 8px;
+    }
+    .equipo-card {
+      background: white;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     }
   </style>
 </head>
@@ -270,12 +344,12 @@
     <div id="content">
       <div class="loading">
         <div class="spinner"></div>
-        <p>Cargando tu estado...</p>
+        <p>Cargando credencial...</p>
       </div>
     </div>
 
     <div class="footer">
-      Torneo 2026 — Concepción del Uruguay
+      Concepción del Uruguay, Entre Ríos
     </div>
   </div>
 
@@ -295,7 +369,7 @@
       const token = params.get('t') || params.get('token');
 
       if (!token) {
-        mostrarError('Token no encontrado', 'Escaneá el QR de tu carnet para ver tu estado.');
+        mostrarError('Token no encontrado', 'Escaneá el QR de tu carnet para ver tu credencial.');
         return;
       }
 
@@ -309,9 +383,9 @@
           return;
         }
 
-        renderEstado(data);
+        renderCredencial(data);
       } catch (e) {
-        mostrarError('Error de conexión', 'No pudimos cargar tu estado. Intentá de nuevo.');
+        mostrarError('Error de conexión', 'No pudimos cargar tu credencial. Intentá de nuevo.');
       }
     }
 
@@ -325,10 +399,78 @@
       `;
     }
 
-    function renderEstado(data) {
+    function calcularEstadoGlobal(equiposData) {
+      let todosHabilitados = true;
+      let algunDebeCuotas = false;
+
+      equiposData.forEach(eq => {
+        if (eq.habilitacion.estado !== 'Habilitado') {
+          todosHabilitados = false;
+        }
+        // Verificar si hay pagos pendientes o rechazados
+        Object.values(eq.pagos).forEach(estado => {
+          if (estado === 'Pendiente' || estado === 'Rechazado' || estado === '') {
+            algunDebeCuotas = true;
+          }
+        });
+      });
+
+      return { activo: todosHabilitados, debeCuotas: algunDebeCuotas };
+    }
+
+    function renderCredencial(data) {
+      const { jugador, equiposData } = data;
+      const estado = calcularEstadoGlobal(equiposData);
+
+      const badgeClass = estado.activo ? 'activo' : 'inactivo';
+      const badgeIcono = estado.activo ? '✓' : '✗';
+      const badgeTitulo = estado.activo ? 'SOCIO ACTIVO' : 'DEBE CUOTAS';
+      const badgeSubtitulo = estado.activo 
+        ? (estado.debeCuotas ? 'Habilitado para jugar' : 'Pagos al día') 
+        : 'Regularice su situación';
+
+      document.getElementById('content').innerHTML = `
+        <div class="credencial-card">
+          <div class="credencial-nombre">${jugador.nombre}</div>
+          <div class="credencial-dni">DNI <strong>${jugador.dni || '—'}</strong></div>
+          
+          <div class="badge-grande ${badgeClass}">
+            <div class="badge-icono">${badgeIcono}</div>
+            <div class="badge-titulo">${badgeTitulo}</div>
+            <div class="badge-subtitulo">${badgeSubtitulo}</div>
+          </div>
+
+          <button class="btn-ver-mas" onclick="toggleDetalles(this)">
+            <span>Ver detalles</span>
+            <span class="arrow">▼</span>
+          </button>
+
+          <div class="detalles" id="detalles"></div>
+        </div>
+      `;
+
+      renderDetalles(data);
+    }
+
+    function toggleDetalles(btn) {
+      const detalles = document.getElementById('detalles');
+      const isVisible = detalles.classList.contains('visible');
+      
+      if (isVisible) {
+        detalles.classList.remove('visible');
+        btn.classList.remove('expanded');
+        btn.querySelector('span').textContent = 'Ver detalles';
+      } else {
+        detalles.classList.add('visible');
+        btn.classList.add('expanded');
+        btn.querySelector('span').textContent = 'Ocultar detalles';
+      }
+    }
+
+    function renderDetalles(data) {
       const { jugador, equiposData, estudioMedico, sancion, fichaSalud } = data;
 
-      // Calcular edad
+      // Edad
       let edadHtml = '';
       if (jugador.fechaNac) {
         const partes = jugador.fechaNac.split('/');
@@ -337,14 +479,23 @@
           const hoy = new Date();
           let edad = hoy.getFullYear() - fechaNac.getFullYear();
           const m = hoy.getMonth() - fechaNac.getMonth();
-          if (m < 0 || (m === 0 && hoy.getDate() < fechaNac.getDate())) {
-            edad--;
-          }
-          edadHtml = `${edad} años`;
+          if (m < 0 || (m === 0 && hoy.getDate() < fechaNac.getDate())) edad--;
+          edadHtml = `(${edad} años)`;
         }
       }
 
-      // Sanción global
+      // Info personal
+      let infoHtml = '';
+      if (jugador.fechaNac) {
+        infoHtml = `
+          <div style="background:var(--gris0);border-radius:10px;padding:12px 16px;margin-bottom:12px;display:flex;justify-content:space-between;font-size:0.9rem;">
+            <span style="color:var(--gris3);">Nacimiento</span>
+            <span style="font-weight:500;">${jugador.fechaNac} ${edadHtml}</span>
+          </div>
+        `;
+      }
+
+      // Sanción
       let sancionHtml = '';
       if (sancion) {
         sancionHtml = `
@@ -355,31 +506,22 @@
         `;
       }
 
-      // Generar cards por equipo
+      // Equipos
       let equiposHtml = '';
-      equiposData.forEach((eq, idx) => {
-        const esHabilitado = eq.habilitacion.estado === 'Habilitado';
-        const statusClass = esHabilitado ? 'habilitado' : 'inhabilitado';
-        const statusIcon = esHabilitado ? '✓' : '✗';
+      equiposData.forEach(eq => {
+        const esHab = eq.habilitacion.estado === 'Habilitado';
+        const statusClass = esHab ? 'habilitado' : 'inhabilitado';
 
-        // Pagos de este equipo
         let pagosHtml = '';
         Object.keys(eq.pagos).forEach(mes => {
           const estado = eq.pagos[mes];
-          let clase = '';
-          let texto = '—';
+          let clase = '', texto = '—';
           if (estado === 'Aprobado') { clase = 'aprobado'; texto = '✓'; }
           else if (estado === 'Pendiente') { clase = 'pendiente'; texto = '⏳'; }
           else if (estado === 'Rechazado') { clase = 'rechazado'; texto = '✗'; }
-          pagosHtml += `
-            <div class="pago-item ${clase}">
-              <div class="pago-mes">${MESES_CORTO[mes] || mes}</div>
-              <div class="pago-estado">${texto}</div>
-            </div>
-          `;
+          pagosHtml += `<div class="pago-item ${clase}"><div class="pago-mes">${MESES_CORTO[mes] || mes}</div><div class="pago-estado">${texto}</div></div>`;
         });
 
-        // Última carga
         let ultimaCargaHtml = '';
         if (eq.ultimaCarga) {
           const fecha = new Date(eq.ultimaCarga);
@@ -387,23 +529,17 @@
         }
 
         equiposHtml += `
-          <div class="card" style="border-left: 4px solid ${esHabilitado ? 'var(--verde)' : 'var(--rojo)'};">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <div class="equipo-card" style="border-left:4px solid ${esHab ? 'var(--verde)' : 'var(--rojo)'};">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
               <div>
                 <div style="font-weight:600;color:var(--azul);">${eq.equipo.nombre}</div>
                 <div style="font-size:0.8rem;color:var(--gris3);">${eq.equipo.categoria}</div>
               </div>
-              <div class="status-badge ${statusClass}" style="margin:0;">
-                <span>${statusIcon}</span>
-                <span>${eq.habilitacion.estado}</span>
-              </div>
+              <div class="status-badge ${statusClass}">${esHab ? '✓' : '✗'} ${eq.habilitacion.estado}</div>
             </div>
-            ${eq.habilitacion.detalle ? `<div class="status-detail" style="margin-bottom:12px;">${eq.habilitacion.detalle}</div>` : ''}
-            
-            <div class="section-title">💰 Pagos de cuota</div>
-            <div class="pagos-grid">
-              ${pagosHtml}
-            </div>
+            ${eq.habilitacion.detalle ? `<div style="font-size:0.8rem;color:var(--gris3);margin-bottom:10px;">${eq.habilitacion.detalle}</div>` : ''}
+            <div class="section-title">💰 Pagos</div>
+            <div class="pagos-grid">${pagosHtml}</div>
             ${ultimaCargaHtml}
           </div>
         `;
@@ -411,7 +547,7 @@
 
       // Estudio médico
       let estudioHtml = '';
-      const requiereEstudio = data.requiereEstudio !== false; // Default true si no viene
+      const requiereEstudio = data.requiereEstudio !== false;
       
       if (!requiereEstudio) {
         estudioHtml = `
@@ -419,14 +555,13 @@
             <span class="info-label">Estado</span>
             <span class="info-value" style="color:var(--verde);">No requerido</span>
           </div>
-          <div style="font-size:0.75rem;color:var(--gris2);margin-top:4px;">Menores de 40 en Libres no requieren estudio médico</div>
+          <div style="font-size:0.75rem;color:var(--gris2);margin-top:4px;">Menores de 40 en Libres</div>
         `;
       } else if (estudioMedico) {
-        const estadoEM = estudioMedico.estado || 'Sin presentar';
         estudioHtml = `
           <div class="info-row">
             <span class="info-label">Estado</span>
-            <span class="info-value">${estadoEM}</span>
+            <span class="info-value">${estudioMedico.estado || 'Sin presentar'}</span>
           </div>
         `;
         if (estudioMedico.fechaVencimiento) {
@@ -446,11 +581,11 @@
         `;
       }
 
-      // Ficha de salud
+      // Ficha salud
       let saludHtml = '';
       if (fichaSalud && (fichaSalud.grupoSanguineo || fichaSalud.contactoNombre)) {
         saludHtml = `
-          <div class="card salud-card">
+          <div class="equipo-card salud-card">
             <div class="salud-header">
               <div class="salud-icon">+</div>
               <div class="salud-title">Ficha de salud</div>
@@ -464,18 +599,8 @@
                 <div class="salud-item-label">Obra social</div>
                 <div class="salud-item-value">${fichaSalud.obraSocial || '—'}</div>
               </div>
-              ${fichaSalud.condicionesMedicas ? `
-              <div class="salud-item full">
-                <div class="salud-item-label">Condiciones médicas</div>
-                <div class="salud-item-value">${fichaSalud.condicionesMedicas}</div>
-              </div>
-              ` : ''}
-              ${fichaSalud.medicacion ? `
-              <div class="salud-item full">
-                <div class="salud-item-label">Medicación</div>
-                <div class="salud-item-value">${fichaSalud.medicacion}</div>
-              </div>
-              ` : ''}
+              ${fichaSalud.condicionesMedicas ? `<div class="salud-item full"><div class="salud-item-label">Condiciones médicas</div><div class="salud-item-value">${fichaSalud.condicionesMedicas}</div></div>` : ''}
+              ${fichaSalud.medicacion ? `<div class="salud-item full"><div class="salud-item-label">Medicación</div><div class="salud-item-value">${fichaSalud.medicacion}</div></div>` : ''}
               <div class="salud-item full">
                 <div class="salud-item-label">Contacto de emergencia</div>
                 <div class="salud-item-value">${fichaSalud.contactoNombre || '—'} ${fichaSalud.contactoTel ? '— ' + fichaSalud.contactoTel : ''}</div>
@@ -485,42 +610,30 @@
         `;
       } else {
         saludHtml = `
-          <div class="card salud-card">
+          <div class="equipo-card salud-card">
             <div class="salud-header">
               <div class="salud-icon">+</div>
               <div class="salud-title">Ficha de salud</div>
             </div>
             <div class="empty-salud">
-              <div class="empty-salud-icon">📋</div>
-              <p>No completaste tu ficha de salud.<br>Pedile a tu delegado que la cargue.</p>
+              <p>Sin datos cargados.<br>Pedile a tu delegado que la complete.</p>
             </div>
           </div>
         `;
       }
 
-      // Render completo
-      document.getElementById('content').innerHTML = `
-        <div class="card" style="text-align:center;">
-          <div class="player-name">${jugador.nombre}</div>
-          <div style="display:flex;flex-direction:column;gap:4px;margin-top:12px;color:var(--gris3);font-size:0.9rem;">
-            <div><span style="color:var(--gris2);">DNI</span> <span style="font-weight:500;color:#1a1a1a;">${jugador.dni || '—'}</span></div>
-            ${jugador.fechaNac ? `<div><span style="color:var(--gris2);">Nacimiento</span> <span style="font-weight:500;color:#1a1a1a;">${jugador.fechaNac}</span> ${edadHtml ? `<span style="color:var(--gris2);">·</span> <span style="font-weight:500;color:#1a1a1a;">${edadHtml}</span>` : ''}</div>` : ''}
-          </div>
-          ${sancionHtml}
-        </div>
-
+      document.getElementById('detalles').innerHTML = `
+        ${infoHtml}
+        ${sancionHtml}
         ${equiposHtml}
-
-        <div class="card">
+        <div class="equipo-card">
           <div class="section-title">🏥 Estudio médico</div>
           ${estudioHtml}
         </div>
-
         ${saludHtml}
       `;
     }
 
-    // Iniciar
     cargarEstado();
   </script>
 </body>
