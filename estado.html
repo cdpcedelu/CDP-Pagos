@@ -366,7 +366,15 @@
 
     async function cargarEstado() {
       const params = new URLSearchParams(window.location.search);
-      const token = params.get('t') || params.get('token');
+      let token = params.get('t') || params.get('token');
+
+      // Si viene token en URL, guardarlo en localStorage
+      if (token) {
+        try { localStorage.setItem('cdp_token', token); } catch(e) {}
+      } else {
+        // Si no viene, intentar recuperar del localStorage
+        try { token = localStorage.getItem('cdp_token'); } catch(e) {}
+      }
 
       if (!token) {
         mostrarError('Token no encontrado', 'Escaneá el QR de tu carnet para ver tu credencial.');
@@ -379,6 +387,8 @@
         const data = await res.json();
 
         if (!data.ok) {
+          // Si el token ya no es válido, limpiar localStorage
+          try { localStorage.removeItem('cdp_token'); } catch(e) {}
           mostrarError('Enlace inválido', data.msg || 'El enlace no es válido o expiró.');
           return;
         }
