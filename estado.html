@@ -121,10 +121,20 @@
       background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
       border: 2px solid var(--verde);
     }
+    .badge-grande.activo .badge-titulo { color: var(--verde); }
+    .badge-grande.activo .badge-subtitulo { color: #15803d; }
+    .badge-grande.debe {
+      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+      border: 2px solid var(--amarillo);
+    }
+    .badge-grande.debe .badge-titulo { color: #b45309; }
+    .badge-grande.debe .badge-subtitulo { color: #92400e; }
     .badge-grande.inactivo {
       background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
       border: 2px solid var(--rojo);
     }
+    .badge-grande.inactivo .badge-titulo { color: var(--rojo); }
+    .badge-grande.inactivo .badge-subtitulo { color: #b91c1c; }
     .badge-icono {
       font-size: 2.5rem;
       margin-bottom: 8px;
@@ -135,15 +145,11 @@
       text-transform: uppercase;
       letter-spacing: 1px;
     }
-    .badge-grande.activo .badge-titulo { color: var(--verde); }
-    .badge-grande.inactivo .badge-titulo { color: var(--rojo); }
     .badge-subtitulo {
       font-size: 0.95rem;
       font-weight: 500;
       margin-top: 4px;
     }
-    .badge-grande.activo .badge-subtitulo { color: #15803d; }
-    .badge-grande.inactivo .badge-subtitulo { color: #b91c1c; }
 
     /* Botón ver más */
     .btn-ver-mas {
@@ -357,6 +363,75 @@
       margin-bottom: 12px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     }
+
+    /* Vista carnet físico */
+    .carnet-fisico {
+      background: linear-gradient(180deg, #2855A4 0%, #1e3a5f 100%);
+      color: white;
+      padding: 32px 24px;
+    }
+    .carnet-logo {
+      width: 70px;
+      height: 70px;
+      margin: 0 auto 16px;
+      display: block;
+      border-radius: 12px;
+    }
+    .carnet-nombre {
+      font-size: 1.5rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+    .carnet-dni {
+      font-size: 1.1rem;
+      opacity: 0.9;
+      margin-bottom: 20px;
+    }
+    .carnet-equipos {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .carnet-categoria {
+      font-size: 0.9rem;
+      opacity: 0.8;
+      margin-bottom: 20px;
+    }
+    .carnet-estado {
+      display: inline-block;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+    .carnet-estado.ok {
+      background: rgba(34, 197, 94, 0.2);
+      color: #86efac;
+      border: 1px solid rgba(34, 197, 94, 0.4);
+    }
+    .carnet-estado.debe {
+      background: rgba(245, 158, 11, 0.2);
+      color: #fde68a;
+      border: 1px solid rgba(245, 158, 11, 0.4);
+    }
+    .carnet-fisico .btn-ver-mas {
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.3);
+      color: white;
+    }
+    .carnet-fisico .btn-ver-mas:hover {
+      background: rgba(255,255,255,0.25);
+    }
+    .carnet-fisico .detalles {
+      background: white;
+      border-radius: 12px;
+      padding: 16px;
+      margin-top: 16px;
+      color: #1a1a1a;
+    }
   </style>
 </head>
 <body>
@@ -389,15 +464,19 @@
       'Septiembre': 'SEP', 'Octubre': 'OCT', 'Noviembre': 'NOV', 'Diciembre': 'DIC'
     };
 
+    let tokenFromUrl = false; // Flag para saber si vino de URL o localStorage
+
     async function cargarEstado() {
       const params = new URLSearchParams(window.location.search);
       let token = params.get('t') || params.get('token');
 
       // Si viene token en URL, guardarlo como backup
       if (token) {
+        tokenFromUrl = true;
         try { localStorage.setItem('cdp_token', token); } catch(e) {}
       } else {
         // Intentar recuperar del localStorage
+        tokenFromUrl = false;
         try { token = localStorage.getItem('cdp_token'); } catch(e) {}
       }
 
@@ -413,11 +492,17 @@
 
         if (!data.ok) {
           try { localStorage.removeItem('cdp_token'); } catch(e) {}
-          mostrarError('Enlace inválido', data.msg || 'El enlace no es válido o expiró.');
+          mostrarError('Credencial no válida', 'Este socio no se encuentra registrado en el sistema.');
           return;
         }
 
-        renderCredencial(data);
+        // Si viene de URL (QR escaneado) → vista badge
+        // Si viene de localStorage (ícono inicio) → vista carnet
+        if (tokenFromUrl) {
+          renderCredencial(data);
+        } else {
+          renderCarnetFisico(data);
+        }
       } catch (e) {
         mostrarError('Error de conexión', 'No pudimos cargar tu credencial. Intentá de nuevo.');
       }
@@ -430,6 +515,241 @@
           <h2>${titulo}</h2>
           <p>${mensaje}</p>
         </div>
+      `;
+    }
+
+    // Vista tipo carnet físico (cuando abre desde ícono de inicio)
+    function renderCarnetFisico(data) {
+      const { jugador, equiposData } = data;
+      const estado = calcularEstadoGlobal(equiposData);
+      
+      // Obtener equipos/categorías
+      const equiposTexto = equiposData.map(eq => eq.equipo.nombre).join(' · ');
+      const categoriasTexto = [...new Set(equiposData.map(eq => eq.equipo.categoria))].join(' · ');
+
+      document.getElementById('content').innerHTML = `
+        <div class="credencial-card carnet-fisico">
+          <img src="icon-cdp.png" alt="CDP" class="carnet-logo">
+          
+          <div class="carnet-nombre">${jugador.nombre}</div>
+          <div class="carnet-dni">DNI ${jugador.dni || '—'}</div>
+          
+          <div class="carnet-equipos">${equiposTexto}</div>
+          <div class="carnet-categoria">${categoriasTexto}</div>
+          
+          <div class="carnet-estado ${estado.debeCuotas ? 'debe' : 'ok'}">
+            ${estado.debeCuotas ? '⚠️ Debe cuotas' : '✓ Pagos al día'}
+          </div>
+
+          <button class="btn-ver-mas" onclick="mostrarDetallesCompletos()">
+            <span>Ver detalles</span>
+            <span class="arrow">▼</span>
+          </button>
+
+          <div class="detalles" id="detalles"></div>
+        </div>
+      `;
+
+      // Pre-renderizar los detalles
+      renderDetallesCarnet(data);
+    }
+
+    function mostrarDetallesCompletos() {
+      const btn = document.querySelector('.btn-ver-mas');
+      const detalles = document.getElementById('detalles');
+      const isVisible = detalles.classList.contains('visible');
+      
+      if (isVisible) {
+        detalles.classList.remove('visible');
+        btn.classList.remove('expanded');
+        btn.querySelector('span').textContent = 'Ver detalles';
+      } else {
+        detalles.classList.add('visible');
+        btn.classList.add('expanded');
+        btn.querySelector('span').textContent = 'Ocultar detalles';
+      }
+    }
+
+    function renderDetallesCarnet(data) {
+      const { jugador, equiposData, estudioMedico, sancion, fichaSalud } = data;
+      const estado = calcularEstadoGlobal(equiposData);
+
+      // Badge de estado
+      const badgeClass = estado.debeCuotas ? 'debe' : 'activo';
+      const badgeIcono = '✓';
+      const badgeTitulo = 'SOCIO ACTIVO';
+      const badgeSubtitulo = estado.debeCuotas ? 'Debe cuotas' : 'Pagos al día';
+
+      let badgeHtml = `
+        <div class="badge-grande ${badgeClass}" style="margin-bottom:16px;">
+          <div class="badge-icono">${badgeIcono}</div>
+          <div class="badge-titulo">${badgeTitulo}</div>
+          <div class="badge-subtitulo">${badgeSubtitulo}</div>
+        </div>
+      `;
+
+      // Edad
+      let edadHtml = '';
+      if (jugador.fechaNac) {
+        const partes = jugador.fechaNac.split('/');
+        if (partes.length === 3) {
+          const fechaNac = new Date(partes[2], partes[1] - 1, partes[0]);
+          const hoy = new Date();
+          let edad = hoy.getFullYear() - fechaNac.getFullYear();
+          const m = hoy.getMonth() - fechaNac.getMonth();
+          if (m < 0 || (m === 0 && hoy.getDate() < fechaNac.getDate())) edad--;
+          edadHtml = `(${edad} años)`;
+        }
+      }
+
+      // Info personal
+      let infoHtml = '';
+      if (jugador.fechaNac) {
+        infoHtml = `
+          <div style="background:var(--gris0);border-radius:10px;padding:12px 16px;margin-bottom:12px;display:flex;justify-content:space-between;font-size:0.9rem;">
+            <span style="color:var(--gris3);">Nacimiento</span>
+            <span style="font-weight:500;">${jugador.fechaNac} ${edadHtml}</span>
+          </div>
+        `;
+      }
+
+      // Sanción
+      let sancionHtml = '';
+      if (sancion) {
+        sancionHtml = `
+          <div class="sancion-badge">
+            <div class="sancion-title">🚫 Sanción deportiva</div>
+            <div class="sancion-detail">${sancion.partidos || ''} ${sancion.fechaHab ? '· Habilitado desde: ' + sancion.fechaHab : ''}</div>
+          </div>
+        `;
+      }
+
+      // Equipos
+      let equiposHtml = '';
+      equiposData.forEach(eq => {
+        const esHab = eq.habilitacion.estado === 'Habilitado';
+        const statusClass = esHab ? 'habilitado' : 'inhabilitado';
+
+        let pagosHtml = '';
+        Object.keys(eq.pagos).forEach(mes => {
+          const estado = eq.pagos[mes];
+          let clase = '', texto = '—';
+          if (estado === 'Aprobado') { clase = 'aprobado'; texto = '✓'; }
+          else if (estado === 'Pendiente') { clase = 'pendiente'; texto = '⏳'; }
+          else if (estado === 'Rechazado') { clase = 'rechazado'; texto = '✗'; }
+          pagosHtml += `<div class="pago-item ${clase}"><div class="pago-mes">${MESES_CORTO[mes] || mes}</div><div class="pago-estado">${texto}</div></div>`;
+        });
+
+        let ultimaCargaHtml = '';
+        if (eq.ultimaCarga) {
+          const fecha = new Date(eq.ultimaCarga);
+          ultimaCargaHtml = `<div class="ultima-carga">Última carga: ${fecha.toLocaleDateString('es-AR')}</div>`;
+        }
+
+        equiposHtml += `
+          <div class="equipo-card" style="border-left:4px solid ${esHab ? 'var(--verde)' : 'var(--rojo)'};">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+              <div>
+                <div style="font-weight:600;color:var(--azul);">${eq.equipo.nombre}</div>
+                <div style="font-size:0.8rem;color:var(--gris3);">${eq.equipo.categoria}</div>
+              </div>
+              <div class="status-badge ${statusClass}">${esHab ? '✓' : '✗'} ${eq.habilitacion.estado}</div>
+            </div>
+            ${eq.habilitacion.detalle ? `<div style="font-size:0.8rem;color:var(--gris3);margin-bottom:10px;">${eq.habilitacion.detalle}</div>` : ''}
+            <div class="section-title">💰 Pagos</div>
+            <div class="pagos-grid">${pagosHtml}</div>
+            ${ultimaCargaHtml}
+          </div>
+        `;
+      });
+
+      // Estudio médico
+      let estudioHtml = '';
+      const requiereEstudio = data.requiereEstudio !== false;
+      
+      if (!requiereEstudio) {
+        estudioHtml = `
+          <div class="info-row">
+            <span class="info-label">Estado</span>
+            <span class="info-value" style="color:var(--verde);">No requerido</span>
+          </div>
+          <div style="font-size:0.75rem;color:var(--gris2);margin-top:4px;">Menores de 40 en Libres</div>
+        `;
+      } else if (estudioMedico) {
+        estudioHtml = `
+          <div class="info-row">
+            <span class="info-label">Estado</span>
+            <span class="info-value">${estudioMedico.estado || 'Sin presentar'}</span>
+          </div>
+        `;
+        if (estudioMedico.fechaVencimiento) {
+          estudioHtml += `
+            <div class="info-row">
+              <span class="info-label">Vencimiento</span>
+              <span class="info-value">${estudioMedico.fechaVencimiento}</span>
+            </div>
+          `;
+        }
+      } else {
+        estudioHtml = `
+          <div class="info-row">
+            <span class="info-label">Estado</span>
+            <span class="info-value" style="color:var(--gris2)">Sin presentar</span>
+          </div>
+        `;
+      }
+
+      // Ficha salud
+      let saludHtml = '';
+      if (fichaSalud && (fichaSalud.grupoSanguineo || fichaSalud.contactoNombre)) {
+        saludHtml = `
+          <div class="equipo-card salud-card">
+            <div class="salud-header">
+              <div class="salud-icon">+</div>
+              <div class="salud-title">Ficha de salud</div>
+            </div>
+            <div class="salud-grid">
+              <div class="salud-item">
+                <div class="salud-item-label">Grupo sanguíneo</div>
+                <div class="salud-item-value">${fichaSalud.grupoSanguineo || '—'}</div>
+              </div>
+              <div class="salud-item">
+                <div class="salud-item-label">Obra social</div>
+                <div class="salud-item-value">${fichaSalud.obraSocial || '—'}</div>
+              </div>
+              ${fichaSalud.condicionesMedicas ? `<div class="salud-item full"><div class="salud-item-label">Condiciones médicas</div><div class="salud-item-value">${fichaSalud.condicionesMedicas}</div></div>` : ''}
+              ${fichaSalud.medicacion ? `<div class="salud-item full"><div class="salud-item-label">Medicación</div><div class="salud-item-value">${fichaSalud.medicacion}</div></div>` : ''}
+              <div class="salud-item full">
+                <div class="salud-item-label">Contacto de emergencia</div>
+                <div class="salud-item-value">${fichaSalud.contactoNombre || '—'} ${fichaSalud.contactoTel ? '— ' + fichaSalud.contactoTel : ''}</div>
+              </div>
+            </div>
+          </div>
+        `;
+      } else {
+        saludHtml = `
+          <div class="equipo-card salud-card">
+            <div class="salud-header">
+              <div class="salud-icon">+</div>
+              <div class="salud-title">Ficha de salud</div>
+            </div>
+            <div class="empty-salud">
+              <p>Sin datos cargados.<br>Pedile a tu delegado que la complete.</p>
+            </div>
+          </div>
+        `;
+      }
+
+      document.getElementById('detalles').innerHTML = `
+        ${badgeHtml}
+        ${infoHtml}
+        ${sancionHtml}
+        ${equiposHtml}
+        <div class="equipo-card">
+          <div class="section-title">🏥 Estudio médico</div>
+          ${estudioHtml}
+        </div>
+        ${saludHtml}
       `;
     }
 
@@ -456,12 +776,11 @@
       const { jugador, equiposData } = data;
       const estado = calcularEstadoGlobal(equiposData);
 
-      const badgeClass = estado.activo ? 'activo' : 'inactivo';
-      const badgeIcono = estado.activo ? '✓' : '✗';
-      const badgeTitulo = estado.activo ? 'SOCIO ACTIVO' : 'DEBE CUOTAS';
-      const badgeSubtitulo = estado.activo 
-        ? (estado.debeCuotas ? 'Habilitado para jugar' : 'Pagos al día') 
-        : 'Regularice su situación';
+      // Siempre SOCIO ACTIVO, el subtítulo indica si debe o no
+      const badgeClass = estado.debeCuotas ? 'debe' : 'activo';
+      const badgeIcono = '✓';
+      const badgeTitulo = 'SOCIO ACTIVO';
+      const badgeSubtitulo = estado.debeCuotas ? 'Debe cuotas' : 'Pagos al día';
 
       document.getElementById('content').innerHTML = `
         <div class="credencial-card">
