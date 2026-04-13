@@ -7902,10 +7902,13 @@ async function renderOCRRecaudacion() {
         ${equipos.map(eq => `<option value="${eq.id}">${eq.nombre}${eq.categoria ? ' (' + eq.categoria + ')' : ''}</option>`).join('')}
       </select>
       <button class="btn-sm btn-cargar" onclick="procesarRecaudacionOCR()" id="btn-recaudacion-ocr">
-        💰 Procesar Aprobados
+        💰 Procesar Nuevos
+      </button>
+      <button class="btn-sm btn-aprobar" onclick="verDetalleOCR()">
+        📋 Ver Detalle
       </button>
       <button class="btn-sm btn-ver" onclick="verEstadisticasOCR()">
-        📊 Ver Estadísticas
+        📊 Estadísticas
       </button>
     </div>
 
@@ -8131,6 +8134,115 @@ function renderListaRecaudacionIndividual(comprobantes, container) {
 
   html += '</tbody></table></div>';
   container.innerHTML = html;
+}
+
+async function verDetalleOCR() {
+  const equipoId = document.getElementById('ocr-equipo-recaudacion').value;
+  const mesSeleccionado = document.getElementById('ocr-mes-recaudacion').value;
+  const resultadosDiv = document.getElementById('ocr-recaudacion-resultados');
+  
+  resultadosDiv.innerHTML = '<div class="loading"><div class="spinner"></div> Cargando detalle...</div>';
+
+  try {
+    // Obtener comprobantes aprobados (incluye datos OCR si ya fueron procesados)
+    const data = await api('getComprobantesParaOCR', { equipoId, soloEstado: 'Aprobado', mes: mesSeleccionado });
+    
+    if (!data.ok) {
+      resultadosDiv.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div>${data.msg}</div>`;
+      return;
+    }
+
+    const comprobantes = data.comprobantes || [];
+    
+    if (comprobantes.length === 0) {
+      resultadosDiv.innerHTML = `
+        <div class="empty" style="padding:40px;">
+          <div class="empty-icon">📭</div>
+          <p>No hay comprobantes aprobados de <strong>${mesSeleccionado}</strong></p>
+        </div>
+      `;
+      return;
+    }
+
+    // Calcular total
+    let totalMonto = 0;
+    const conOCR = comprobantes.filter(c => c.ocrProcesado);
+    const sinOCR = comprobantes.filter(c => !c.ocrProcesado);
+    
+    conOCR.forEach(c => {
+      const monto = c.montoDetectado ? parsearMontoJS(c.montoDetectado) : 0;
+      if (monto) totalMonto += monto;
+    });
+
+    // Mostrar resumen
+    let html = `
+      <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:20px;text-align:center;margin-bottom:20px;">
+        <div style="font-size:0.9rem;color:#15803d;margin-bottom:8px;">💰 Recaudación de <strong>${mesSeleccionado}</strong></div>
+        <div style="font-size:2.5rem;font-weight:700;color:#15803d;">$${totalMonto.toLocaleString('es-AR')}</div>
+        <div style="font-size:0.85rem;color:var(--gris3);margin-top:4px;">
+          ${conOCR.length} con OCR procesado
+          ${sinOCR.length > 0 ? ` · <span style="color:#b45309;">${sinOCR.length} sin procesar</span>` : ''}
+        </div>
+      </div>
+    `;
+
+    // Tabla de detalle
+    html += `
+      <div class="card-title" style="margin-bottom:12px;">📋 Detalle por Jugador - ${mesSeleccionado}</div>
+      <div style="max-height:400px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px;">
+        <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+          <thead style="background:#f8fafc;position:sticky;top:0;">
+            <tr>
+              <th style="padding:10px;text-align:left;border-bottom:1px solid #e5e7eb;">Jugador</th>
+              <th style="padding:10px;text-align:left;border-bottom:1px solid #e5e7eb;">Equipo</th>
+              <th style="padding:10px;text-align:center;border-bottom:1px solid #e5e7eb;">Fecha</th>
+              <th style="padding:10px;text-align:right;border-bottom:1px solid #e5e7eb;">Monto</th>
+              <th style="padding:10px;text-align:center;border-bottom:1px solid #e5e7eb;">Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+
+    comprobantes.forEach((c, idx) => {
+      const monto = c.montoDetectado || '—';
+      const fecha = c.fechaDetectada || '—';
+      const tieneOCR = c.ocrProcesado;
+      const fueraRango = c.fueraDeRango;
+      const bgColor = fueraRango ? '#fff9c4' : (idx % 2 === 0 ? '#fff' : '#f8fafc');
+
+      html += `
+        <tr style="background:${bgColor};">
+          <td style="padding:10px;border-bottom:1px solid #f1f5f9;">${c.jugador}</td>
+          <td style="padding:10px;border-bottom:1px solid #f1f5f9;">${c.equipo}</td>
+          <td style="padding:10px;text-align:center;border-bottom:1px solid #f1f5f9;">${fecha}</td>
+          <td style="padding:10px;text-align:right;border-bottom:1px solid #f1f5f9;font-weight:600;${fueraRango ? 'color:#b45309;' : 'color:#15803d;'}">${monto}</td>
+          <td style="padding:10px;text-align:center;border-bottom:1px solid #f1f5f9;">
+            ${tieneOCR 
+              ? '<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:4px;font-size:0.75rem;">✓ OCR</span>' 
+              : '<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:4px;font-size:0.75rem;">⏳ Pendiente</span>'}
+          </td>
+        </tr>
+      `;
+    });
+
+    html += '</tbody></table></div>';
+    
+    // Botón para procesar los que faltan
+    if (sinOCR.length > 0) {
+      html += `
+        <div style="margin-top:16px;text-align:center;">
+          <button class="btn-sm btn-cargar" onclick="procesarRecaudacionOCR()">
+            🔍 Procesar ${sinOCR.length} pendientes
+          </button>
+        </div>
+      `;
+    }
+
+    resultadosDiv.innerHTML = html;
+
+  } catch(e) {
+    resultadosDiv.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div>Error: ${e.message}</div>`;
+  }
 }
 
 async function verEstadisticasOCR() {
