@@ -1548,12 +1548,12 @@ function iniciarApp() {
       <button class="nav-tab" onclick="navTo('estadisticas-admin', this)">📈 Estadísticas</button>
       <button class="nav-tab" onclick="navTo('todos-comprobantes', this)">📋 Comprobantes</button>
       <button class="nav-tab" onclick="navTo('por-equipo', this)">⚽ Por Equipo</button>
-      <button class="nav-tab" onclick="navTo('ocr-admin', this)">🔍 OCR</button>
       <button class="nav-tab" onclick="navTo('jugadores-admin', this)">👥 Jugadores</button>
       <button class="nav-tab" onclick="navTo('planillas', this)">📄 Planillas</button>
       <button class="nav-tab" onclick="navTo('solicitudes-alta', this)" id="tab-solicitudes">📥 Solicitudes</button>
       <button class="nav-tab" onclick="navTo('estudios-medicos-admin', this)">🩺 Estudios</button>
       <button class="nav-tab" onclick="navTo('salud-admin', this)">🏥 Salud</button>
+      <button class="nav-tab" onclick="navTo('ocr-admin', this)">🔍 OCR</button>
       <button class="nav-tab" onclick="navTo('configuracion', this)">⚙️ Config</button>
     `;
     renderAdmin();
@@ -7458,7 +7458,7 @@ async function renderOCRPendientes() {
       <select id="ocr-equipo-select" style="padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-size:0.95rem;min-width:200px;">
         <option value="">-- Seleccionar equipo --</option>
         <option value="TODOS">📋 TODOS LOS EQUIPOS</option>
-        ${equipos.map(eq => `<option value="${eq.id}">${eq.nombre} (${eq.categoria})</option>`).join('')}
+        ${equipos.map(eq => `<option value="${eq.id}">${eq.nombre}${eq.categoria ? ' (' + eq.categoria + ')' : ''}</option>`).join('')}
       </select>
       <button class="btn-sm btn-cargar" onclick="buscarComprobantesOCR('Pendiente')" id="btn-buscar-ocr">
         🔍 Buscar Pendientes
@@ -7899,7 +7899,7 @@ async function renderOCRRecaudacion() {
       </select>
       <select id="ocr-equipo-recaudacion" style="padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-size:0.95rem;min-width:200px;">
         <option value="TODOS" selected>📋 TODOS LOS EQUIPOS</option>
-        ${equipos.map(eq => `<option value="${eq.id}">${eq.nombre} (${eq.categoria})</option>`).join('')}
+        ${equipos.map(eq => `<option value="${eq.id}">${eq.nombre}${eq.categoria ? ' (' + eq.categoria + ')' : ''}</option>`).join('')}
       </select>
       <button class="btn-sm btn-cargar" onclick="procesarRecaudacionOCR()" id="btn-recaudacion-ocr">
         💰 Procesar Aprobados
@@ -7919,7 +7919,7 @@ async function procesarRecaudacionOCR() {
 
   const btn = document.getElementById('btn-recaudacion-ocr');
   btn.disabled = true;
-  btn.textContent = '⏳ Procesando...';
+  btn.textContent = '⏳ Buscando...';
 
   const resultadosDiv = document.getElementById('ocr-recaudacion-resultados');
   resultadosDiv.innerHTML = '<div class="loading"><div class="spinner"></div> Buscando comprobantes aprobados...</div>';
@@ -7936,12 +7936,14 @@ async function procesarRecaudacionOCR() {
     }
 
     const todosComprobantes = data.comprobantes || [];
+    const sinProcesar = todosComprobantes.filter(c => !c.ocrProcesado);
+    const yaProcesados = todosComprobantes.filter(c => c.ocrProcesado);
 
     if (todosComprobantes.length === 0) {
       resultadosDiv.innerHTML = `
         <div class="empty" style="padding:40px;">
           <div class="empty-icon">✅</div>
-          <p>No hay comprobantes de <strong>${mesSeleccionado}</strong> pendientes de procesar OCR</p>
+          <p>No hay comprobantes aprobados de <strong>${mesSeleccionado}</strong></p>
           <p style="font-size:0.85rem;color:var(--gris3);margin-top:8px;">Usá "Ver Estadísticas" para ver los ya procesados</p>
         </div>
       `;
@@ -7950,28 +7952,55 @@ async function procesarRecaudacionOCR() {
       return;
     }
 
+    // Calcular tiempo estimado (~3 seg por comprobante nuevo)
+    const tiempoEstimado = sinProcesar.length * 3;
+    const minutos = Math.floor(tiempoEstimado / 60);
+    const segundos = tiempoEstimado % 60;
+    const tiempoStr = minutos > 0 ? `${minutos}m ${segundos}s` : `${segundos}s`;
+
+    // Si hay muchos sin procesar, mostrar confirmación
+    if (sinProcesar.length > 5) {
+      if (!confirm(`Se procesarán ${sinProcesar.length} comprobantes nuevos.\nTiempo estimado: ${tiempoStr}\n\n¿Continuar? (Podés seguir usando otras pestañas mientras procesa)`)) {
+        btn.disabled = false;
+        btn.textContent = '💰 Procesar Aprobados';
+        return;
+      }
+    }
+
+    // Guardar comprobantes para referencia
+    window._ocrRecaudacionComprobantes = todosComprobantes;
+
     resultadosDiv.innerHTML = `
       <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:14px;margin-bottom:16px;">
-        <strong>${todosComprobantes.length}</strong> comprobantes de <strong>${mesSeleccionado}</strong> para procesar OCR
+        <strong>${todosComprobantes.length}</strong> comprobantes de <strong>${mesSeleccionado}</strong>
+        ${yaProcesados.length > 0 ? `<span style="color:#15803d;margin-left:10px;">✓ ${yaProcesados.length} con OCR</span>` : ''}
+        ${sinProcesar.length > 0 ? `<span style="color:#b45309;margin-left:10px;">⏳ ${sinProcesar.length} por procesar (~${tiempoStr})</span>` : ''}
       </div>
       <div id="ocr-recaudacion-progreso"></div>
+      <div id="ocr-recaudacion-lista" style="margin-top:16px;"></div>
     `;
 
-    // Procesar
+    // Procesar solo los que no tienen OCR
     const progresoDiv = document.getElementById('ocr-recaudacion-progreso');
+    const resultadosProcesados = [...yaProcesados]; // Empezar con los ya procesados
     let procesados = 0;
-    let totalMonto = 0;
+    let errores = 0;
 
-    for (const c of todosComprobantes) {
+    // Habilitar botón para que pueda navegar
+    btn.disabled = false;
+    btn.textContent = '⏳ Procesando...';
+
+    for (const c of sinProcesar) {
       progresoDiv.innerHTML = `
         <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:12px;">
           <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
-            <span>Procesando OCR...</span>
-            <span>${procesados + 1} / ${todosComprobantes.length}</span>
+            <span>Procesando OCR... (podés seguir trabajando)</span>
+            <span>${procesados + 1} / ${sinProcesar.length}</span>
           </div>
           <div style="background:#e0e7ff;height:8px;border-radius:4px;overflow:hidden;">
-            <div style="background:#3b82f6;height:100%;width:${((procesados + 1) / todosComprobantes.length) * 100}%;transition:width 0.3s;"></div>
+            <div style="background:#3b82f6;height:100%;width:${((procesados + 1) / sinProcesar.length) * 100}%;transition:width 0.3s;"></div>
           </div>
+          <div style="font-size:0.8rem;color:var(--gris3);margin-top:6px;">${c.jugador}</div>
         </div>
       `;
 
@@ -7986,34 +8015,122 @@ async function procesarRecaudacionOCR() {
           fileId: c.fileId
         });
 
-        if (res.ok && res.montoNum) {
-          totalMonto += res.montoNum;
+        if (res.ok) {
+          resultadosProcesados.push({
+            ...c,
+            fechaDetectada: res.fecha,
+            montoDetectado: res.monto,
+            montoNum: res.montoNum,
+            fueraDeRango: res.fueraDeRango,
+            ocrProcesado: true
+          });
+        } else {
+          errores++;
         }
         procesados++;
       } catch(e) {
+        errores++;
         console.error('Error OCR:', c.id, e);
       }
 
       await new Promise(r => setTimeout(r, 500));
     }
 
-    resultadosDiv.innerHTML = `
+    // Calcular total
+    let totalMonto = 0;
+    resultadosProcesados.forEach(c => {
+      const monto = c.montoNum || (c.montoDetectado ? parsearMontoJS(c.montoDetectado) : 0);
+      if (monto) totalMonto += monto;
+    });
+
+    // Mostrar resumen y lista individual
+    progresoDiv.innerHTML = `
       <div style="background:#dcfce7;border:1px solid #86efac;border-radius:10px;padding:20px;text-align:center;">
-        <div style="font-size:0.9rem;color:#15803d;margin-bottom:8px;">✅ ${procesados} comprobantes procesados</div>
+        <div style="font-size:0.9rem;color:#15803d;margin-bottom:8px;">✅ ${resultadosProcesados.length} comprobantes procesados${errores > 0 ? ` · <span style="color:#dc2626;">${errores} errores</span>` : ''}</div>
         <div style="font-size:2rem;font-weight:700;color:#15803d;">$${totalMonto.toLocaleString('es-AR')}</div>
-        <div style="font-size:0.85rem;color:var(--gris3);margin-top:4px;">Total detectado por OCR</div>
-      </div>
-      <div style="margin-top:16px;text-align:center;">
-        <button class="btn-sm btn-ver" onclick="verEstadisticasOCR()">📊 Ver Estadísticas Completas</button>
+        <div style="font-size:0.85rem;color:var(--gris3);margin-top:4px;">Total recaudado en ${mesSeleccionado}</div>
       </div>
     `;
 
+    // Mostrar lista individual
+    const listaDiv = document.getElementById('ocr-recaudacion-lista');
+    renderListaRecaudacionIndividual(resultadosProcesados, listaDiv);
+
+    btn.textContent = '💰 Procesar Aprobados';
+
   } catch(e) {
     resultadosDiv.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div>Error: ${e.message}</div>`;
-  } finally {
     btn.disabled = false;
     btn.textContent = '💰 Procesar Aprobados';
   }
+}
+
+// Parsear monto en JS (similar a parsearMonto en GAS)
+function parsearMontoJS(montoStr) {
+  if (!montoStr) return 0;
+  const str = montoStr.toString().replace(/\$/g, '').trim();
+  
+  const puntos = (str.match(/\./g) || []).length;
+  const comas = (str.match(/,/g) || []).length;
+  
+  if (comas === 1 && puntos >= 1) {
+    // Formato argentino: 40.000,00
+    return parseFloat(str.replace(/\./g, '').replace(',', '.'));
+  } else if (puntos === 1 && comas >= 1) {
+    // Formato americano: 40,000.00
+    return parseFloat(str.replace(/,/g, ''));
+  } else if (comas === 1 && puntos === 0) {
+    const partes = str.split(',');
+    if (partes[1] && partes[1].length === 2) {
+      return parseFloat(str.replace(',', '.'));
+    }
+    return parseFloat(str.replace(',', ''));
+  } else if (puntos === 1 && comas === 0) {
+    const partes = str.split('.');
+    if (partes[1] && partes[1].length === 3) {
+      return parseFloat(str.replace('.', ''));
+    }
+    return parseFloat(str);
+  } else if (puntos > 1) {
+    return parseFloat(str.replace(/\./g, ''));
+  }
+  return parseFloat(str.replace(/[.,]/g, '')) || 0;
+}
+
+function renderListaRecaudacionIndividual(comprobantes, container) {
+  let html = `
+    <div class="card-title" style="margin-bottom:12px;">📋 Detalle por Jugador</div>
+    <div style="max-height:350px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px;">
+      <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+        <thead style="background:#f8fafc;position:sticky;top:0;">
+          <tr>
+            <th style="padding:10px;text-align:left;border-bottom:1px solid #e5e7eb;">Jugador</th>
+            <th style="padding:10px;text-align:left;border-bottom:1px solid #e5e7eb;">Equipo</th>
+            <th style="padding:10px;text-align:center;border-bottom:1px solid #e5e7eb;">Fecha</th>
+            <th style="padding:10px;text-align:right;border-bottom:1px solid #e5e7eb;">Monto</th>
+          </tr>
+        </thead>
+        <tbody>
+  `;
+
+  comprobantes.forEach((c, idx) => {
+    const monto = c.montoDetectado || '—';
+    const fecha = c.fechaDetectada || '—';
+    const fueraRango = c.fueraDeRango;
+    const bgColor = fueraRango ? '#fff9c4' : (idx % 2 === 0 ? '#fff' : '#f8fafc');
+
+    html += `
+      <tr style="background:${bgColor};">
+        <td style="padding:10px;border-bottom:1px solid #f1f5f9;">${c.jugador}</td>
+        <td style="padding:10px;border-bottom:1px solid #f1f5f9;">${c.equipo}</td>
+        <td style="padding:10px;text-align:center;border-bottom:1px solid #f1f5f9;">${fecha}</td>
+        <td style="padding:10px;text-align:right;border-bottom:1px solid #f1f5f9;font-weight:600;${fueraRango ? 'color:#b45309;' : 'color:#15803d;'}">${monto}</td>
+      </tr>
+    `;
+  });
+
+  html += '</tbody></table></div>';
+  container.innerHTML = html;
 }
 
 async function verEstadisticasOCR() {
