@@ -53,7 +53,7 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: 'Inter', -apple-system, sans-serif;
-      background: linear-gradient(135deg, #1e3a5f 0%, #2855A4 50%, #2E8B4A 100%);
+      background: #0a0a0a;
       min-height: 100vh;
       padding: 20px;
     }
@@ -83,6 +83,12 @@
       color: rgba(255,255,255,0.85);
       font-size: 1.1rem;
       font-weight: 500;
+    }
+    .fecha-consulta {
+      color: rgba(255,255,255,0.6);
+      font-size: 0.8rem;
+      margin-top: 10px;
+      text-transform: capitalize;
     }
 
     /* Credencial colapsada */
@@ -516,7 +522,14 @@
     <div class="header">
       <h1>Club de Profesionales</h1>
       <p>Justo José de Urquiza</p>
+      <div class="fecha-consulta" id="fecha-consulta"></div>
     </div>
+    <script>
+      // Mostrar fecha y hora actual
+      const ahora = new Date();
+      const opciones = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' };
+      document.getElementById('fecha-consulta').textContent = ahora.toLocaleDateString('es-AR', opciones) + ' hs';
+    </script>
 
     <div id="content">
       <div class="loading">
