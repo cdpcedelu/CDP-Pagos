@@ -38,6 +38,7 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     :root {
       --azul: #2855A4;
@@ -454,17 +455,18 @@
       font-size: 0.85rem;
       font-weight: 600;
     }
-    .carnet-qr-placeholder {
-      width: 50px;
-      height: 50px;
+    .carnet-qr-box {
+      width: 54px;
+      height: 54px;
       background: white;
       border-radius: 6px;
+      padding: 2px;
       display: flex;
       align-items: center;
       justify-content: center;
     }
-    .carnet-qr-icon {
-      font-size: 1.5rem;
+    .carnet-qr-box img {
+      border-radius: 4px;
     }
     
     .btn-ver-mas-carnet {
@@ -603,6 +605,14 @@
       const esIC = categorias.length > 1 || jugador.nombre.includes('(IC)');
       const nombreMostrar = jugador.nombre.replace(' (IC)', '');
 
+      // Obtener token actual para el QR
+      const params = new URLSearchParams(window.location.search);
+      let token = params.get('t') || params.get('token');
+      if (!token) {
+        try { token = localStorage.getItem('cdp_token'); } catch(e) {}
+      }
+      const qrUrl = `https://cdpcedelu.github.io/CDP-Pagos/estado.html?t=${token}`;
+
       document.getElementById('content').innerHTML = `
         <div class="carnet-container">
           <div class="carnet-frente">
@@ -624,9 +634,7 @@
                 <div class="carnet-estado-label">ESTADO</div>
                 <div class="carnet-estado-valor">${estado.debeCuotas ? '⚠️ Debe cuotas' : '✓ Al día'}</div>
               </div>
-              <div class="carnet-qr-placeholder">
-                <div class="carnet-qr-icon">📱</div>
-              </div>
+              <div id="carnet-qr" class="carnet-qr-box"></div>
             </div>
           </div>
           
@@ -638,6 +646,16 @@
           <div class="detalles-carnet" id="detalles"></div>
         </div>
       `;
+
+      // Generar QR real
+      new QRCode(document.getElementById('carnet-qr'), {
+        text: qrUrl,
+        width: 50,
+        height: 50,
+        colorDark: '#000000',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.M
+      });
 
       // Pre-renderizar los detalles
       renderDetallesCarnet(data);
