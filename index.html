@@ -7498,7 +7498,7 @@ async function buscarComprobantesOCR(estado) {
       resultadosDiv.innerHTML = `
         <div class="empty" style="padding:40px;">
           <div class="empty-icon">✅</div>
-          <p>No hay comprobantes pendientes de procesar</p>
+          <p>No hay comprobantes pendientes</p>
         </div>
       `;
       btn.disabled = false;
@@ -7506,17 +7506,29 @@ async function buscarComprobantesOCR(estado) {
       return;
     }
 
+    // Separar procesados de no procesados
+    const yaProcesados = todosComprobantes.filter(c => c.ocrProcesado);
+    const sinProcesar = todosComprobantes.filter(c => !c.ocrProcesado);
+
     // Guardar para procesar
     window._ocrComprobantes = todosComprobantes;
+    window._ocrResultados = yaProcesados; // Los ya procesados tienen datos OCR
 
-    resultadosDiv.innerHTML = `
+    let resumenHtml = `
       <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px;margin-bottom:16px;">
-        <strong>${todosComprobantes.length}</strong> comprobantes encontrados sin procesar OCR
+        <strong>${todosComprobantes.length}</strong> comprobantes pendientes de revisión
+        ${yaProcesados.length > 0 ? `<span style="color:#15803d;margin-left:10px;">✓ ${yaProcesados.length} con OCR</span>` : ''}
+        ${sinProcesar.length > 0 ? `<span style="color:#b45309;margin-left:10px;">⏳ ${sinProcesar.length} sin OCR</span>` : ''}
       </div>
 
-      <div style="display:flex;gap:10px;margin-bottom:16px;">
-        <button class="btn-sm btn-aprobar" onclick="procesarOCRMasivo()" id="btn-procesar-ocr">
-          🔍 Procesar OCR (${todosComprobantes.length})
+      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+        ${sinProcesar.length > 0 ? `
+          <button class="btn-sm btn-aprobar" onclick="procesarOCRMasivo(false)" id="btn-procesar-ocr">
+            🔍 Procesar OCR (${sinProcesar.length} nuevos)
+          </button>
+        ` : ''}
+        <button class="btn-sm btn-cargar" onclick="procesarOCRMasivo(true)" id="btn-reprocesar-ocr">
+          🔄 Reprocesar TODOS (${todosComprobantes.length})
         </button>
       </div>
 
@@ -7524,8 +7536,10 @@ async function buscarComprobantesOCR(estado) {
       <div id="ocr-progreso" style="display:none;margin-top:16px;"></div>
     `;
 
-    // Mostrar lista previa
-    renderListaOCR(todosComprobantes, 'ocr-lista', false);
+    resultadosDiv.innerHTML = resumenHtml;
+
+    // Mostrar lista con datos OCR si ya tienen
+    renderListaOCR(todosComprobantes, 'ocr-lista', true);
 
   } catch(e) {
     resultadosDiv.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div>Error: ${e.message}</div>`;
@@ -7579,14 +7593,16 @@ function renderListaOCR(comprobantes, containerId, conResultados = false) {
 
   comprobantes.forEach((c, idx) => {
     const fueraRango = c.fueraDeRango || (c.montoNum && (c.montoNum < 16000 || c.montoNum > 80000));
+    const tieneOCR = c.ocrProcesado || c.fechaDetectada || c.montoDetectado;
     const bgColor = fueraRango ? '#fff9c4' : (idx % 2 === 0 ? '#fff' : '#f8fafc');
     const tipoSocio = c.tipoSocio || '?';
     const icBadge = c.esIC ? '<span style="background:#dbeafe;color:#1d4ed8;padding:1px 4px;border-radius:3px;font-size:0.7rem;margin-left:4px;">IC</span>' : '';
+    const ocrBadge = tieneOCR ? '<span style="background:#dcfce7;color:#15803d;padding:1px 4px;border-radius:3px;font-size:0.65rem;margin-left:4px;">OCR</span>' : '<span style="background:#fef3c7;color:#92400e;padding:1px 4px;border-radius:3px;font-size:0.65rem;margin-left:4px;">sin OCR</span>';
     
     html += `
       <tr style="background:${bgColor};" data-comp-id="${c.id}">
         ${conResultados ? `<td style="padding:8px;text-align:center;border-bottom:1px solid #f1f5f9;"><input type="checkbox" class="ocr-checkbox" data-id="${c.id}"></td>` : ''}
-        <td style="padding:8px;border-bottom:1px solid #f1f5f9;">${c.jugador}${icBadge}</td>
+        <td style="padding:8px;border-bottom:1px solid #f1f5f9;">${c.jugador}${icBadge}${ocrBadge}</td>
         <td style="padding:8px;border-bottom:1px solid #f1f5f9;">${c.equipo}</td>
         <td style="padding:8px;text-align:center;border-bottom:1px solid #f1f5f9;">
           <span style="font-size:0.75rem;padding:2px 6px;border-radius:4px;background:${tipoSocio === 'PASIVO' ? '#fef3c7' : '#e0e7ff'};color:${tipoSocio === 'PASIVO' ? '#92400e' : '#3730a3'};">${tipoSocio}</span>
@@ -7596,10 +7612,11 @@ function renderListaOCR(comprobantes, containerId, conResultados = false) {
           <td style="padding:8px;text-align:center;border-bottom:1px solid #f1f5f9;">${c.fechaDetectada || c.fecha || '—'}</td>
           <td style="padding:8px;text-align:right;border-bottom:1px solid #f1f5f9;font-weight:600;${fueraRango ? 'color:#b45309;' : ''}">${c.montoDetectado || c.monto || '—'}</td>
           <td style="padding:8px;text-align:center;border-bottom:1px solid #f1f5f9;">
-            <div style="display:flex;gap:4px;justify-content:center;">
+            <div style="display:flex;gap:3px;justify-content:center;flex-wrap:wrap;">
               <button onclick="aprobarComprobanteOCR('${c.id}')" style="background:#dcfce7;border:none;color:#15803d;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:0.75rem;" title="Aprobar">✓</button>
               <button onclick="rechazarComprobanteOCR('${c.id}')" style="background:#fee2e2;border:none;color:#dc2626;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:0.75rem;" title="Rechazar">✗</button>
               <button onclick="verComprobanteOCR('${c.id}')" style="background:#e0e7ff;border:none;color:#3730a3;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:0.75rem;" title="Ver imagen">👁</button>
+              <button onclick="reprocesarOCRIndividual('${c.id}')" style="background:#fef3c7;border:none;color:#92400e;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:0.75rem;" title="Reprocesar OCR">🔄</button>
             </div>
           </td>
         ` : ''}
@@ -7609,6 +7626,62 @@ function renderListaOCR(comprobantes, containerId, conResultados = false) {
 
   html += '</tbody></table></div>';
   container.innerHTML = html;
+}
+
+async function reprocesarOCRIndividual(compId) {
+  const c = window._ocrComprobantes?.find(x => x.id === compId);
+  if (!c) {
+    showToast('Comprobante no encontrado', 'error');
+    return;
+  }
+  
+  const btn = event.target;
+  btn.disabled = true;
+  btn.textContent = '⏳';
+  
+  try {
+    const res = await api('procesarOCRComprobante', {
+      compId: c.id,
+      equipo: c.equipo,
+      categoria: c.categoria,
+      jugador: c.jugador,
+      mes: c.mes,
+      archivoUrl: c.archivoUrl,
+      fileId: c.fileId,
+      forzar: true
+    });
+    
+    if (res.ok) {
+      // Actualizar datos en memoria
+      c.fechaDetectada = res.fecha;
+      c.montoDetectado = res.monto;
+      c.montoNum = res.montoNum;
+      c.fueraDeRango = res.fueraDeRango;
+      c.ocrProcesado = true;
+      
+      // Actualizar la fila
+      const row = document.querySelector(`tr[data-comp-id="${compId}"]`);
+      if (row) {
+        const cells = row.querySelectorAll('td');
+        // Fecha
+        cells[5].textContent = res.fecha || '—';
+        // Monto
+        cells[6].textContent = res.monto || '—';
+        cells[6].style.color = res.fueraDeRango ? '#b45309' : '';
+        // Background si fuera de rango
+        row.style.background = res.fueraDeRango ? '#fff9c4' : '';
+      }
+      
+      showToast(`OCR reprocesado: ${res.monto || 'sin monto'}`, 'success');
+    } else {
+      showToast(res.msg || 'Error al reprocesar', 'error');
+    }
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔄';
+  }
 }
 
 function toggleSelectAllOCR(checked) {
@@ -7650,7 +7723,7 @@ async function rechazarComprobanteOCR(compId) {
 }
 
 function verComprobanteOCR(compId) {
-  const c = window._ocrResultados?.find(x => x.id === compId);
+  const c = window._ocrComprobantes?.find(x => x.id === compId) || window._ocrResultados?.find(x => x.id === compId);
   if (c && c.fileId) {
     window.open(`https://drive.google.com/file/d/${c.fileId}/view`, '_blank');
   } else {
@@ -7705,16 +7778,24 @@ async function rechazarSeleccionadosOCR() {
   showToast(`${rechazados} comprobantes rechazados`, 'success');
 }
 
-async function procesarOCRMasivo() {
-  const comprobantes = window._ocrComprobantes || [];
+async function procesarOCRMasivo(forzar = false) {
+  let comprobantes = window._ocrComprobantes || [];
+  
+  // Si no es forzar, solo procesar los que no tienen OCR
+  if (!forzar) {
+    comprobantes = comprobantes.filter(c => !c.ocrProcesado);
+  }
+  
   if (comprobantes.length === 0) {
     showToast('No hay comprobantes para procesar', 'error');
     return;
   }
 
-  const btn = document.getElementById('btn-procesar-ocr');
-  btn.disabled = true;
-  btn.textContent = '⏳ Procesando...';
+  const btn = forzar ? document.getElementById('btn-reprocesar-ocr') : document.getElementById('btn-procesar-ocr');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '⏳ Procesando...';
+  }
 
   const progresoDiv = document.getElementById('ocr-progreso');
   progresoDiv.style.display = 'block';
@@ -7729,7 +7810,7 @@ async function procesarOCRMasivo() {
     progresoDiv.innerHTML = `
       <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:12px;">
         <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
-          <span>Procesando OCR...</span>
+          <span>${forzar ? 'Reprocesando' : 'Procesando'} OCR...</span>
           <span>${procesados + 1} / ${comprobantes.length}</span>
         </div>
         <div style="background:#e0e7ff;height:8px;border-radius:4px;overflow:hidden;">
@@ -7747,7 +7828,8 @@ async function procesarOCRMasivo() {
         jugador: c.jugador,
         mes: c.mes,
         archivoUrl: c.archivoUrl,
-        fileId: c.fileId
+        fileId: c.fileId,
+        forzar: forzar
       });
 
       if (res.ok) {
@@ -7756,7 +7838,9 @@ async function procesarOCRMasivo() {
           fecha: res.fecha,
           monto: res.monto,
           montoNum: res.montoNum,
-          fueraDeRango: res.fueraDeRango
+          fueraDeRango: res.fueraDeRango,
+          fechaDetectada: res.fecha,
+          montoDetectado: res.monto
         });
         procesados++;
       } else {
