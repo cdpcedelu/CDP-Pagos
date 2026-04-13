@@ -7484,22 +7484,15 @@ async function buscarComprobantesOCR(estado) {
   resultadosDiv.innerHTML = '<div class="loading"><div class="spinner"></div> Buscando comprobantes...</div>';
 
   try {
-    let todosComprobantes = [];
-
-    if (equipoId === 'TODOS') {
-      // Buscar en todos los equipos
-      for (const eq of window._ocrEquipos) {
-        const data = await api('getComprobantesParaOCR', { equipoId: eq.id, soloEstado: estado });
-        if (data.ok && data.comprobantes.length > 0) {
-          todosComprobantes = todosComprobantes.concat(data.comprobantes);
-        }
-      }
-    } else {
-      const data = await api('getComprobantesParaOCR', { equipoId, soloEstado: estado });
-      if (data.ok) {
-        todosComprobantes = data.comprobantes;
-      }
+    // Una sola llamada al backend
+    const data = await api('getComprobantesParaOCR', { equipoId, soloEstado: estado });
+    
+    if (!data.ok) {
+      resultadosDiv.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div>${data.msg}</div>`;
+      return;
     }
+
+    const todosComprobantes = data.comprobantes || [];
 
     if (todosComprobantes.length === 0) {
       resultadosDiv.innerHTML = `
@@ -7671,12 +7664,16 @@ async function procesarOCRMasivo() {
 async function renderOCRRecaudacion() {
   const cnt = document.getElementById('ocr-content');
   const equipos = window._ocrEquipos || [];
+  const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+  const mesActual = new Date().getMonth(); // 0-11
 
   cnt.innerHTML = `
     <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:20px;">
+      <select id="ocr-mes-recaudacion" style="padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-size:0.95rem;min-width:140px;">
+        ${meses.map((m, i) => `<option value="${m}" ${i === mesActual ? 'selected' : ''}>${m}</option>`).join('')}
+      </select>
       <select id="ocr-equipo-recaudacion" style="padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-size:0.95rem;min-width:200px;">
-        <option value="">-- Seleccionar equipo --</option>
-        <option value="TODOS">📋 TODOS LOS EQUIPOS</option>
+        <option value="TODOS" selected>📋 TODOS LOS EQUIPOS</option>
         ${equipos.map(eq => `<option value="${eq.id}">${eq.nombre} (${eq.categoria})</option>`).join('')}
       </select>
       <button class="btn-sm btn-cargar" onclick="procesarRecaudacionOCR()" id="btn-recaudacion-ocr">
@@ -7693,10 +7690,7 @@ async function renderOCRRecaudacion() {
 
 async function procesarRecaudacionOCR() {
   const equipoId = document.getElementById('ocr-equipo-recaudacion').value;
-  if (!equipoId) {
-    showToast('Seleccioná un equipo', 'error');
-    return;
-  }
+  const mesSeleccionado = document.getElementById('ocr-mes-recaudacion').value;
 
   const btn = document.getElementById('btn-recaudacion-ocr');
   btn.disabled = true;
@@ -7706,27 +7700,23 @@ async function procesarRecaudacionOCR() {
   resultadosDiv.innerHTML = '<div class="loading"><div class="spinner"></div> Buscando comprobantes aprobados...</div>';
 
   try {
-    let todosComprobantes = [];
-
-    if (equipoId === 'TODOS') {
-      for (const eq of window._ocrEquipos) {
-        const data = await api('getComprobantesParaOCR', { equipoId: eq.id, soloEstado: 'Aprobado' });
-        if (data.ok && data.comprobantes.length > 0) {
-          todosComprobantes = todosComprobantes.concat(data.comprobantes);
-        }
-      }
-    } else {
-      const data = await api('getComprobantesParaOCR', { equipoId, soloEstado: 'Aprobado' });
-      if (data.ok) {
-        todosComprobantes = data.comprobantes;
-      }
+    // Una sola llamada al backend con filtro de mes
+    const data = await api('getComprobantesParaOCR', { equipoId, soloEstado: 'Aprobado', mes: mesSeleccionado });
+    
+    if (!data.ok) {
+      resultadosDiv.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div>${data.msg}</div>`;
+      btn.disabled = false;
+      btn.textContent = '💰 Procesar Aprobados';
+      return;
     }
+
+    const todosComprobantes = data.comprobantes || [];
 
     if (todosComprobantes.length === 0) {
       resultadosDiv.innerHTML = `
         <div class="empty" style="padding:40px;">
           <div class="empty-icon">✅</div>
-          <p>No hay comprobantes aprobados pendientes de procesar OCR</p>
+          <p>No hay comprobantes de <strong>${mesSeleccionado}</strong> pendientes de procesar OCR</p>
           <p style="font-size:0.85rem;color:var(--gris3);margin-top:8px;">Usá "Ver Estadísticas" para ver los ya procesados</p>
         </div>
       `;
@@ -7737,7 +7727,7 @@ async function procesarRecaudacionOCR() {
 
     resultadosDiv.innerHTML = `
       <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:14px;margin-bottom:16px;">
-        <strong>${todosComprobantes.length}</strong> comprobantes aprobados para procesar OCR
+        <strong>${todosComprobantes.length}</strong> comprobantes de <strong>${mesSeleccionado}</strong> para procesar OCR
       </div>
       <div id="ocr-recaudacion-progreso"></div>
     `;
@@ -7802,11 +7792,12 @@ async function procesarRecaudacionOCR() {
 }
 
 async function verEstadisticasOCR() {
+  const mesSeleccionado = document.getElementById('ocr-mes-recaudacion').value;
   const resultadosDiv = document.getElementById('ocr-recaudacion-resultados');
   resultadosDiv.innerHTML = '<div class="loading"><div class="spinner"></div> Cargando estadísticas...</div>';
 
   try {
-    const data = await api('getEstadisticasOCR');
+    const data = await api('getEstadisticasOCR', { mes: mesSeleccionado });
     if (!data.ok) {
       resultadosDiv.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div>${data.msg}</div>`;
       return;
@@ -7814,12 +7805,12 @@ async function verEstadisticasOCR() {
 
     let tablaHtml = `
       <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:20px;text-align:center;margin-bottom:20px;">
-        <div style="font-size:0.9rem;color:#15803d;margin-bottom:8px;">💰 Total Recaudado (OCR)</div>
+        <div style="font-size:0.9rem;color:#15803d;margin-bottom:8px;">💰 Recaudación de <strong>${mesSeleccionado}</strong> (OCR)</div>
         <div style="font-size:2.5rem;font-weight:700;color:#15803d;">$${data.totalGeneral.toLocaleString('es-AR')}</div>
         <div style="font-size:0.85rem;color:var(--gris3);margin-top:4px;">${data.cantidadTotal} comprobantes procesados</div>
       </div>
 
-      <div class="card-title" style="margin-bottom:12px;">📊 Recaudación por Equipo</div>
+      <div class="card-title" style="margin-bottom:12px;">📊 Recaudación por Equipo - ${mesSeleccionado}</div>
       <div style="max-height:400px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px;">
         <table style="width:100%;border-collapse:collapse;font-size:0.9rem;">
           <thead style="background:#f8fafc;position:sticky;top:0;">
@@ -7832,15 +7823,19 @@ async function verEstadisticasOCR() {
           <tbody>
     `;
 
-    data.porEquipo.forEach((eq, idx) => {
-      tablaHtml += `
-        <tr style="background:${idx % 2 === 0 ? '#fff' : '#f8fafc'};">
-          <td style="padding:12px;border-bottom:1px solid #f1f5f9;font-weight:500;">${eq.equipo}</td>
-          <td style="padding:12px;text-align:center;border-bottom:1px solid #f1f5f9;">${eq.cantidad}</td>
-          <td style="padding:12px;text-align:right;border-bottom:1px solid #f1f5f9;font-weight:600;color:#15803d;">$${eq.monto.toLocaleString('es-AR')}</td>
-        </tr>
-      `;
-    });
+    if (data.porEquipo.length === 0) {
+      tablaHtml += `<tr><td colspan="3" style="padding:20px;text-align:center;color:var(--gris3);">No hay datos procesados para ${mesSeleccionado}</td></tr>`;
+    } else {
+      data.porEquipo.forEach((eq, idx) => {
+        tablaHtml += `
+          <tr style="background:${idx % 2 === 0 ? '#fff' : '#f8fafc'};">
+            <td style="padding:12px;border-bottom:1px solid #f1f5f9;font-weight:500;">${eq.equipo}</td>
+            <td style="padding:12px;text-align:center;border-bottom:1px solid #f1f5f9;">${eq.cantidad}</td>
+            <td style="padding:12px;text-align:right;border-bottom:1px solid #f1f5f9;font-weight:600;color:#15803d;">$${eq.monto.toLocaleString('es-AR')}</td>
+          </tr>
+        `;
+      });
+    }
 
     tablaHtml += '</tbody></table></div>';
     resultadosDiv.innerHTML = tablaHtml;
