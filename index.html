@@ -7538,18 +7538,39 @@ async function buscarComprobantesOCR(estado) {
 function renderListaOCR(comprobantes, containerId, conResultados = false) {
   const container = document.getElementById(containerId);
   
-  let html = `
+  // Header con acciones masivas si hay resultados
+  let headerAcciones = '';
+  if (conResultados) {
+    headerAcciones = `
+      <div style="display:flex;gap:10px;margin-bottom:12px;align-items:center;">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+          <input type="checkbox" id="ocr-select-all" onchange="toggleSelectAllOCR(this.checked)">
+          <span style="font-size:0.85rem;">Seleccionar todos</span>
+        </label>
+        <button class="btn-sm btn-aprobar" onclick="aprobarSeleccionadosOCR()" style="font-size:0.8rem;padding:6px 12px;">
+          ✓ Aprobar seleccionados
+        </button>
+        <button class="btn-sm btn-rechazar" onclick="rechazarSeleccionadosOCR()" style="font-size:0.8rem;padding:6px 12px;">
+          ✗ Rechazar seleccionados
+        </button>
+      </div>
+    `;
+  }
+  
+  let html = headerAcciones + `
     <div style="max-height:400px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px;">
-      <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+      <table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
         <thead style="background:#f8fafc;position:sticky;top:0;">
           <tr>
-            <th style="padding:10px;text-align:left;border-bottom:1px solid #e5e7eb;">Jugador</th>
-            <th style="padding:10px;text-align:left;border-bottom:1px solid #e5e7eb;">Equipo</th>
-            <th style="padding:10px;text-align:center;border-bottom:1px solid #e5e7eb;">Mes</th>
+            ${conResultados ? '<th style="padding:8px;width:30px;border-bottom:1px solid #e5e7eb;"></th>' : ''}
+            <th style="padding:8px;text-align:left;border-bottom:1px solid #e5e7eb;">Jugador</th>
+            <th style="padding:8px;text-align:left;border-bottom:1px solid #e5e7eb;">Equipo</th>
+            <th style="padding:8px;text-align:center;border-bottom:1px solid #e5e7eb;">Tipo</th>
+            <th style="padding:8px;text-align:center;border-bottom:1px solid #e5e7eb;">Mes</th>
             ${conResultados ? `
-              <th style="padding:10px;text-align:center;border-bottom:1px solid #e5e7eb;">Fecha</th>
-              <th style="padding:10px;text-align:right;border-bottom:1px solid #e5e7eb;">Monto</th>
-              <th style="padding:10px;text-align:center;border-bottom:1px solid #e5e7eb;">Estado</th>
+              <th style="padding:8px;text-align:center;border-bottom:1px solid #e5e7eb;">Fecha</th>
+              <th style="padding:8px;text-align:right;border-bottom:1px solid #e5e7eb;">Monto</th>
+              <th style="padding:8px;text-align:center;border-bottom:1px solid #e5e7eb;">Acciones</th>
             ` : ''}
           </tr>
         </thead>
@@ -7559,17 +7580,27 @@ function renderListaOCR(comprobantes, containerId, conResultados = false) {
   comprobantes.forEach((c, idx) => {
     const fueraRango = c.fueraDeRango || (c.montoNum && (c.montoNum < 16000 || c.montoNum > 80000));
     const bgColor = fueraRango ? '#fff9c4' : (idx % 2 === 0 ? '#fff' : '#f8fafc');
+    const tipoSocio = c.tipoSocio || '?';
+    const icBadge = c.esIC ? '<span style="background:#dbeafe;color:#1d4ed8;padding:1px 4px;border-radius:3px;font-size:0.7rem;margin-left:4px;">IC</span>' : '';
     
     html += `
-      <tr style="background:${bgColor};">
-        <td style="padding:10px;border-bottom:1px solid #f1f5f9;">${c.jugador}</td>
-        <td style="padding:10px;border-bottom:1px solid #f1f5f9;">${c.equipo}</td>
-        <td style="padding:10px;text-align:center;border-bottom:1px solid #f1f5f9;">${c.mes}</td>
+      <tr style="background:${bgColor};" data-comp-id="${c.id}">
+        ${conResultados ? `<td style="padding:8px;text-align:center;border-bottom:1px solid #f1f5f9;"><input type="checkbox" class="ocr-checkbox" data-id="${c.id}"></td>` : ''}
+        <td style="padding:8px;border-bottom:1px solid #f1f5f9;">${c.jugador}${icBadge}</td>
+        <td style="padding:8px;border-bottom:1px solid #f1f5f9;">${c.equipo}</td>
+        <td style="padding:8px;text-align:center;border-bottom:1px solid #f1f5f9;">
+          <span style="font-size:0.75rem;padding:2px 6px;border-radius:4px;background:${tipoSocio === 'PASIVO' ? '#fef3c7' : '#e0e7ff'};color:${tipoSocio === 'PASIVO' ? '#92400e' : '#3730a3'};">${tipoSocio}</span>
+        </td>
+        <td style="padding:8px;text-align:center;border-bottom:1px solid #f1f5f9;">${c.mes}</td>
         ${conResultados ? `
-          <td style="padding:10px;text-align:center;border-bottom:1px solid #f1f5f9;">${c.fechaDetectada || c.fecha || '—'}</td>
-          <td style="padding:10px;text-align:right;border-bottom:1px solid #f1f5f9;font-weight:600;${fueraRango ? 'color:#b45309;' : ''}">${c.montoDetectado || c.monto || '—'}</td>
-          <td style="padding:10px;text-align:center;border-bottom:1px solid #f1f5f9;">
-            ${fueraRango ? '<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:4px;font-size:0.75rem;">⚠️ Revisar</span>' : '<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:4px;font-size:0.75rem;">✓ OK</span>'}
+          <td style="padding:8px;text-align:center;border-bottom:1px solid #f1f5f9;">${c.fechaDetectada || c.fecha || '—'}</td>
+          <td style="padding:8px;text-align:right;border-bottom:1px solid #f1f5f9;font-weight:600;${fueraRango ? 'color:#b45309;' : ''}">${c.montoDetectado || c.monto || '—'}</td>
+          <td style="padding:8px;text-align:center;border-bottom:1px solid #f1f5f9;">
+            <div style="display:flex;gap:4px;justify-content:center;">
+              <button onclick="aprobarComprobanteOCR('${c.id}')" style="background:#dcfce7;border:none;color:#15803d;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:0.75rem;" title="Aprobar">✓</button>
+              <button onclick="rechazarComprobanteOCR('${c.id}')" style="background:#fee2e2;border:none;color:#dc2626;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:0.75rem;" title="Rechazar">✗</button>
+              <button onclick="verComprobanteOCR('${c.id}')" style="background:#e0e7ff;border:none;color:#3730a3;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:0.75rem;" title="Ver imagen">👁</button>
+            </div>
           </td>
         ` : ''}
       </tr>
@@ -7578,6 +7609,100 @@ function renderListaOCR(comprobantes, containerId, conResultados = false) {
 
   html += '</tbody></table></div>';
   container.innerHTML = html;
+}
+
+function toggleSelectAllOCR(checked) {
+  document.querySelectorAll('.ocr-checkbox').forEach(cb => cb.checked = checked);
+}
+
+async function aprobarComprobanteOCR(compId) {
+  if (!confirm('¿Aprobar este comprobante?')) return;
+  
+  try {
+    const res = await api('aprobar', { id: compId });
+    if (res.ok) {
+      showToast('Comprobante aprobado', 'success');
+      // Quitar fila de la tabla
+      document.querySelector(`tr[data-comp-id="${compId}"]`)?.remove();
+    } else {
+      showToast(res.msg || 'Error al aprobar', 'error');
+    }
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+
+async function rechazarComprobanteOCR(compId) {
+  const obs = prompt('Motivo del rechazo:');
+  if (!obs) return;
+  
+  try {
+    const res = await api('rechazar', { id: compId, obs });
+    if (res.ok) {
+      showToast('Comprobante rechazado', 'success');
+      document.querySelector(`tr[data-comp-id="${compId}"]`)?.remove();
+    } else {
+      showToast(res.msg || 'Error al rechazar', 'error');
+    }
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+
+function verComprobanteOCR(compId) {
+  const c = window._ocrResultados?.find(x => x.id === compId);
+  if (c && c.fileId) {
+    window.open(`https://drive.google.com/file/d/${c.fileId}/view`, '_blank');
+  } else {
+    showToast('No se encontró el archivo', 'error');
+  }
+}
+
+async function aprobarSeleccionadosOCR() {
+  const seleccionados = Array.from(document.querySelectorAll('.ocr-checkbox:checked')).map(cb => cb.dataset.id);
+  if (seleccionados.length === 0) {
+    showToast('Seleccioná al menos un comprobante', 'error');
+    return;
+  }
+  
+  if (!confirm(`¿Aprobar ${seleccionados.length} comprobantes?`)) return;
+  
+  let aprobados = 0;
+  for (const id of seleccionados) {
+    try {
+      const res = await api('aprobar', { id });
+      if (res.ok) {
+        document.querySelector(`tr[data-comp-id="${id}"]`)?.remove();
+        aprobados++;
+      }
+    } catch(e) {}
+  }
+  showToast(`${aprobados} comprobantes aprobados`, 'success');
+}
+
+async function rechazarSeleccionadosOCR() {
+  const seleccionados = Array.from(document.querySelectorAll('.ocr-checkbox:checked')).map(cb => cb.dataset.id);
+  if (seleccionados.length === 0) {
+    showToast('Seleccioná al menos un comprobante', 'error');
+    return;
+  }
+  
+  const obs = prompt('Motivo del rechazo para todos:');
+  if (!obs) return;
+  
+  if (!confirm(`¿Rechazar ${seleccionados.length} comprobantes?`)) return;
+  
+  let rechazados = 0;
+  for (const id of seleccionados) {
+    try {
+      const res = await api('rechazar', { id, obs });
+      if (res.ok) {
+        document.querySelector(`tr[data-comp-id="${id}"]`)?.remove();
+        rechazados++;
+      }
+    } catch(e) {}
+  }
+  showToast(`${rechazados} comprobantes rechazados`, 'success');
 }
 
 async function procesarOCRMasivo() {
@@ -7597,6 +7722,8 @@ async function procesarOCRMasivo() {
   const resultados = [];
   let procesados = 0;
   let errores = 0;
+
+  const erroresDetalle = [];
 
   for (const c of comprobantes) {
     progresoDiv.innerHTML = `
@@ -7634,11 +7761,11 @@ async function procesarOCRMasivo() {
         procesados++;
       } else {
         errores++;
-        console.error('Error OCR:', c.id, res.msg);
+        erroresDetalle.push({ jugador: c.jugador, equipo: c.equipo, mes: c.mes, error: res.msg });
       }
     } catch(e) {
       errores++;
-      console.error('Error OCR:', c.id, e);
+      erroresDetalle.push({ jugador: c.jugador, equipo: c.equipo, mes: c.mes, error: e.message });
     }
 
     // Pequeña pausa para no saturar
@@ -7646,12 +7773,26 @@ async function procesarOCRMasivo() {
   }
 
   // Mostrar resultados
-  progresoDiv.innerHTML = `
+  let resumenHtml = `
     <div style="background:#dcfce7;border:1px solid #86efac;border-radius:8px;padding:12px;margin-bottom:16px;">
       ✅ <strong>${procesados}</strong> procesados correctamente
       ${errores > 0 ? ` · <span style="color:#dc2626;">${errores} errores</span>` : ''}
     </div>
   `;
+
+  // Si hay errores, mostrar detalle
+  if (erroresDetalle.length > 0) {
+    resumenHtml += `
+      <div style="background:#fee2e2;border:1px solid #fecaca;border-radius:8px;padding:12px;margin-bottom:16px;">
+        <div style="font-weight:600;color:#dc2626;margin-bottom:8px;">⚠️ Errores de OCR:</div>
+        <ul style="margin:0;padding-left:20px;font-size:0.85rem;color:#7f1d1d;">
+          ${erroresDetalle.map(e => `<li><strong>${e.jugador}</strong> (${e.equipo}, ${e.mes}): ${e.error}</li>`).join('')}
+        </ul>
+      </div>
+    `;
+  }
+
+  progresoDiv.innerHTML = resumenHtml;
 
   // Mostrar tabla con resultados
   window._ocrResultados = resultados;
