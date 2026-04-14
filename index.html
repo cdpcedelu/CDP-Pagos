@@ -7418,10 +7418,21 @@ async function renderOCRAdmin() {
       <div class="card">
         <div class="card-title">🔍 Procesamiento OCR de Comprobantes</div>
         
-        <div style="display:flex;gap:0;margin:16px 0;border-bottom:2px solid var(--gris1);">
-          <button class="planillas-tab active" onclick="switchOCRTab('pendientes')" id="tab-ocr-pendientes">📋 Pendientes</button>
-          <button class="planillas-tab" onclick="switchOCRTab('recaudacion')" id="tab-ocr-recaudacion">💰 Recaudación</button>
+        <div style="display:flex;gap:8px;margin:16px 0 20px 0;">
+          <button class="planillas-tab active" onclick="switchOCRTab('pendientes')" id="tab-ocr-pendientes" style="padding:12px 24px;border-radius:8px;border:2px solid var(--gris1);background:#fff;">📋 Pendientes</button>
+          <button class="planillas-tab" onclick="switchOCRTab('recaudacion')" id="tab-ocr-recaudacion" style="padding:12px 24px;border-radius:8px;border:2px solid var(--gris1);background:#fff;">💰 Recaudación</button>
         </div>
+        <style>
+          #tab-ocr-pendientes.active, #tab-ocr-recaudacion.active {
+            background: var(--azul2) !important;
+            color: #fff !important;
+            border-color: var(--azul2) !important;
+            font-weight: 600;
+          }
+          #tab-ocr-pendientes:not(.active):hover, #tab-ocr-recaudacion:not(.active):hover {
+            background: #f1f5f9;
+          }
+        </style>
 
         <div id="ocr-content"></div>
       </div>
@@ -7439,7 +7450,9 @@ async function renderOCRAdmin() {
 }
 
 function switchOCRTab(tab) {
-  document.querySelectorAll('.planillas-tab').forEach(t => t.classList.remove('active'));
+  // Solo afectar los tabs de OCR
+  document.getElementById('tab-ocr-pendientes').classList.remove('active');
+  document.getElementById('tab-ocr-recaudacion').classList.remove('active');
   document.getElementById(`tab-ocr-${tab}`).classList.add('active');
   
   if (tab === 'pendientes') {
@@ -8267,43 +8280,46 @@ async function verDetalleOCR() {
     const montoActivo = cuotaSocial + cuotaDep;
     const montoIC = cuotaSocial + cuotaDep + (cuotaDep / 2);
 
-    // Detectar IC duplicados por nombre de jugador + Mes
+    // Detectar IC duplicados por nombre de jugador + Mes (solo entre los que tienen OCR)
     const jugadorMesVisto = {};
-    comprobantes.forEach(c => {
+    let duplicadosIC = 0;
+    
+    // Primero marcar duplicados solo entre los que tienen OCR
+    comprobantes.filter(c => c.ocrProcesado).forEach(c => {
       const nombreLimpio = c.jugador.replace(/\s*\(IC\)\s*/gi, '').trim();
       const clave = `${nombreLimpio}_${c.mes}`;
       if (jugadorMesVisto[clave]) {
         c.icDuplicado = true;
+        duplicadosIC++;
       } else {
         jugadorMesVisto[clave] = true;
       }
     });
 
-    // Calcular total y asignar montos asumidos
+    // Calcular total y asignar montos asumidos (solo para los que tienen OCR)
     let totalMonto = 0;
-    let duplicadosIC = 0;
     let asumidos = 0;
     const conOCR = comprobantes.filter(c => c.ocrProcesado);
     const sinOCR = comprobantes.filter(c => !c.ocrProcesado);
     
     comprobantes.forEach(c => {
-      if (c.icDuplicado) {
-        duplicadosIC++;
-        return;
-      }
+      // Solo procesar los que tienen OCR
+      if (!c.ocrProcesado) return;
+      if (c.icDuplicado) return;
       
       let monto = c.montoDetectado ? parsearMontoJS(c.montoDetectado) : 0;
       
       // Si no hay monto detectado y tiene OCR, asumir según tipo
       if ((!monto || monto === 0) && c.ocrProcesado) {
         const esIC = c.jugador.includes('(IC)') || c.esIC;
-        const tipoSocio = c.tipoSocio || 'ACTIVO';
+        const tipoSocio = (c.tipoSocio || 'ACTIVO').toUpperCase();
         
         if (esIC) {
           monto = montoIC;
         } else if (tipoSocio === 'PASIVO') {
           monto = montoPasivo;
-        } else if (tipoSocio === 'COLABORADOR') {
+        } else if (tipoSocio.includes('COL')) {
+          // COLABORADOR, COL, ACTIVO COL, etc
           monto = montoColaborador;
         } else {
           monto = montoActivo;
@@ -8322,7 +8338,7 @@ async function verDetalleOCR() {
         <div style="font-size:0.9rem;color:#15803d;margin-bottom:8px;">💰 Recaudación de <strong>${mesSeleccionado}</strong></div>
         <div style="font-size:2.5rem;font-weight:700;color:#15803d;">$${totalMonto.toLocaleString('es-AR')}</div>
         <div style="font-size:0.85rem;color:var(--gris3);margin-top:4px;">
-          ${comprobantes.length - duplicadosIC} comprobantes únicos
+          ${conOCR.length - duplicadosIC} comprobantes únicos
           ${sinOCR.length > 0 ? ` · <span style="color:#b45309;">${sinOCR.length} sin procesar</span>` : ''}
           ${asumidos > 0 ? ` · <span style="color:#f59e0b;">${asumidos} asumidos</span>` : ''}
           ${duplicadosIC > 0 ? ` · <span style="color:#6366f1;">${duplicadosIC} IC duplicados</span>` : ''}
