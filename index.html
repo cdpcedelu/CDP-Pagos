@@ -7609,7 +7609,7 @@ function renderListaOCR(comprobantes, containerId, conResultados = false) {
         </td>
         <td style="padding:8px;text-align:center;border-bottom:1px solid #f1f5f9;">${c.mes}</td>
         ${conResultados ? `
-          <td style="padding:8px;text-align:center;border-bottom:1px solid #f1f5f9;">${c.fechaDetectada || c.fecha || '—'}</td>
+          <td style="padding:8px;text-align:center;border-bottom:1px solid #f1f5f9;">${formatearFechaOCR(c.fechaDetectada || c.fecha)}</td>
           <td style="padding:8px;text-align:right;border-bottom:1px solid #f1f5f9;font-weight:600;${fueraRango ? 'color:#b45309;' : ''}">${c.montoDetectado || c.monto || '—'}</td>
           <td style="padding:8px;text-align:center;border-bottom:1px solid #f1f5f9;">
             <div style="display:flex;gap:3px;justify-content:center;flex-wrap:wrap;">
@@ -8100,6 +8100,102 @@ function parsearMontoJS(montoStr) {
   return parseFloat(str.replace(/[.,]/g, '')) || 0;
 }
 
+// Formatear fecha de OCR (puede venir como ISO string o como DD/MM/YYYY)
+function formatearFechaOCR(fecha) {
+  if (!fecha) return '—';
+  
+  const str = fecha.toString();
+  
+  // Si ya está en formato DD/MM/YYYY, devolverla
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(str)) {
+    return str;
+  }
+  
+  // Si viene como ISO (2026-04-09T00:00:00.000Z)
+  if (str.includes('T')) {
+    try {
+      const d = new Date(str);
+      const dia = ('0' + d.getDate()).slice(-2);
+      const mes = ('0' + (d.getMonth() + 1)).slice(-2);
+      const anio = d.getFullYear();
+      const hora = ('0' + d.getHours()).slice(-2);
+      const min = ('0' + d.getMinutes()).slice(-2);
+      return `${dia}/${mes}/${anio} ${hora}:${min}`;
+    } catch(e) {
+      return str;
+    }
+  }
+  
+  return str;
+}
+
+// Ver comprobante desde la lista de detalle
+function verComprobanteDetalle(compId) {
+  const c = window._ocrDetalleComprobantes?.find(x => x.id === compId);
+  if (c && c.fileId) {
+    window.open(`https://drive.google.com/file/d/${c.fileId}/view`, '_blank');
+  } else {
+    showToast('No se encontró el archivo', 'error');
+  }
+}
+
+// Reprocesar comprobante desde la lista de detalle
+async function reprocesarDetalleOCR(compId) {
+  const c = window._ocrDetalleComprobantes?.find(x => x.id === compId);
+  if (!c) {
+    showToast('Comprobante no encontrado', 'error');
+    return;
+  }
+  
+  const btn = event.target;
+  btn.disabled = true;
+  btn.textContent = '⏳';
+  
+  try {
+    const res = await api('procesarOCRComprobante', {
+      compId: c.id,
+      equipo: c.equipo,
+      categoria: c.categoria,
+      jugador: c.jugador,
+      mes: c.mes,
+      archivoUrl: c.archivoUrl,
+      fileId: c.fileId,
+      forzar: true
+    });
+    
+    if (res.ok) {
+      // Actualizar datos en memoria
+      c.fechaDetectada = res.fecha;
+      c.montoDetectado = res.monto;
+      c.montoNum = res.montoNum;
+      c.fueraDeRango = res.fueraDeRango;
+      c.ocrProcesado = true;
+      
+      // Actualizar la fila
+      const row = document.querySelector(`tr[data-comp-id="${compId}"]`);
+      if (row) {
+        const cells = row.querySelectorAll('td');
+        // Fecha (columna 3)
+        cells[2].textContent = formatearFechaOCR(res.fecha);
+        // Monto (columna 4)
+        cells[3].textContent = res.monto || '—';
+        cells[3].style.color = res.fueraDeRango ? '#b45309' : '#15803d';
+        // Background si fuera de rango o sin monto
+        row.style.background = res.fueraDeRango ? '#fff9c4' : (!res.monto ? '#fef2f2' : '');
+      }
+      
+      showToast(`OCR: ${res.monto || 'sin monto detectado'}`, res.monto ? 'success' : 'error');
+    } else {
+      showToast(res.msg || 'Error al reprocesar', 'error');
+    }
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔄';
+  }
+}
+
 function renderListaRecaudacionIndividual(comprobantes, container) {
   let html = `
     <div class="card-title" style="margin-bottom:12px;">📋 Detalle por Jugador</div>
@@ -8118,7 +8214,7 @@ function renderListaRecaudacionIndividual(comprobantes, container) {
 
   comprobantes.forEach((c, idx) => {
     const monto = c.montoDetectado || '—';
-    const fecha = c.fechaDetectada || '—';
+    const fecha = formatearFechaOCR(c.fechaDetectada);
     const fueraRango = c.fueraDeRango;
     const bgColor = fueraRango ? '#fff9c4' : (idx % 2 === 0 ? '#fff' : '#f8fafc');
 
@@ -8164,14 +8260,31 @@ async function verDetalleOCR() {
       return;
     }
 
-    // Calcular total
+    // Detectar IC duplicados por FileId
+    const fileIdVisto = {};
+    comprobantes.forEach(c => {
+      if (c.fileId) {
+        if (fileIdVisto[c.fileId]) {
+          c.icDuplicado = true; // Marcar como duplicado
+        } else {
+          fileIdVisto[c.fileId] = true;
+        }
+      }
+    });
+
+    // Calcular total (sin contar duplicados IC)
     let totalMonto = 0;
+    let duplicadosIC = 0;
     const conOCR = comprobantes.filter(c => c.ocrProcesado);
     const sinOCR = comprobantes.filter(c => !c.ocrProcesado);
     
     conOCR.forEach(c => {
-      const monto = c.montoDetectado ? parsearMontoJS(c.montoDetectado) : 0;
-      if (monto) totalMonto += monto;
+      if (c.icDuplicado) {
+        duplicadosIC++;
+      } else {
+        const monto = c.montoDetectado ? parsearMontoJS(c.montoDetectado) : 0;
+        if (monto) totalMonto += monto;
+      }
     });
 
     // Mostrar resumen
@@ -8180,11 +8293,15 @@ async function verDetalleOCR() {
         <div style="font-size:0.9rem;color:#15803d;margin-bottom:8px;">💰 Recaudación de <strong>${mesSeleccionado}</strong></div>
         <div style="font-size:2.5rem;font-weight:700;color:#15803d;">$${totalMonto.toLocaleString('es-AR')}</div>
         <div style="font-size:0.85rem;color:var(--gris3);margin-top:4px;">
-          ${conOCR.length} con OCR procesado
+          ${conOCR.length} con OCR
           ${sinOCR.length > 0 ? ` · <span style="color:#b45309;">${sinOCR.length} sin procesar</span>` : ''}
+          ${duplicadosIC > 0 ? ` · <span style="color:#6366f1;">${duplicadosIC} IC duplicados (no suman)</span>` : ''}
         </div>
       </div>
     `;
+
+    // Guardar comprobantes para el botón VER
+    window._ocrDetalleComprobantes = comprobantes;
 
     // Tabla de detalle
     html += `
@@ -8198,6 +8315,7 @@ async function verDetalleOCR() {
               <th style="padding:10px;text-align:center;border-bottom:1px solid #e5e7eb;">Fecha</th>
               <th style="padding:10px;text-align:right;border-bottom:1px solid #e5e7eb;">Monto</th>
               <th style="padding:10px;text-align:center;border-bottom:1px solid #e5e7eb;">Estado</th>
+              <th style="padding:10px;text-align:center;border-bottom:1px solid #e5e7eb;">Ver</th>
             </tr>
           </thead>
           <tbody>
@@ -8205,21 +8323,34 @@ async function verDetalleOCR() {
 
     comprobantes.forEach((c, idx) => {
       const monto = c.montoDetectado || '—';
-      const fecha = c.fechaDetectada || '—';
+      const fecha = formatearFechaOCR(c.fechaDetectada);
       const tieneOCR = c.ocrProcesado;
       const fueraRango = c.fueraDeRango;
-      const bgColor = fueraRango ? '#fff9c4' : (idx % 2 === 0 ? '#fff' : '#f8fafc');
+      const esDuplicadoIC = c.icDuplicado;
+      const sinMonto = !c.montoDetectado || c.montoDetectado === '—';
+      const bgColor = esDuplicadoIC ? '#e0e7ff' : (fueraRango ? '#fff9c4' : (sinMonto && tieneOCR ? '#fef2f2' : (idx % 2 === 0 ? '#fff' : '#f8fafc')));
+
+      let estadoBadge = '';
+      if (esDuplicadoIC) {
+        estadoBadge = '<span style="background:#c7d2fe;color:#4338ca;padding:2px 8px;border-radius:4px;font-size:0.75rem;">IC-Dup</span>';
+      } else if (tieneOCR) {
+        estadoBadge = '<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:4px;font-size:0.75rem;">✓ OCR</span>';
+      } else {
+        estadoBadge = '<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:4px;font-size:0.75rem;">⏳ Pendiente</span>';
+      }
 
       html += `
-        <tr style="background:${bgColor};">
-          <td style="padding:10px;border-bottom:1px solid #f1f5f9;">${c.jugador}</td>
+        <tr style="background:${bgColor};" data-comp-id="${c.id}">
+          <td style="padding:10px;border-bottom:1px solid #f1f5f9;">${c.jugador}${c.esIC ? ' <span style="background:#dbeafe;color:#1d4ed8;padding:1px 4px;border-radius:3px;font-size:0.65rem;">IC</span>' : ''}</td>
           <td style="padding:10px;border-bottom:1px solid #f1f5f9;">${c.equipo}</td>
           <td style="padding:10px;text-align:center;border-bottom:1px solid #f1f5f9;">${fecha}</td>
-          <td style="padding:10px;text-align:right;border-bottom:1px solid #f1f5f9;font-weight:600;${fueraRango ? 'color:#b45309;' : 'color:#15803d;'}">${monto}</td>
+          <td style="padding:10px;text-align:right;border-bottom:1px solid #f1f5f9;font-weight:600;${esDuplicadoIC ? 'color:#6366f1;text-decoration:line-through;' : (fueraRango ? 'color:#b45309;' : 'color:#15803d;')}">${monto}</td>
+          <td style="padding:10px;text-align:center;border-bottom:1px solid #f1f5f9;">${estadoBadge}</td>
           <td style="padding:10px;text-align:center;border-bottom:1px solid #f1f5f9;">
-            ${tieneOCR 
-              ? '<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:4px;font-size:0.75rem;">✓ OCR</span>' 
-              : '<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:4px;font-size:0.75rem;">⏳ Pendiente</span>'}
+            <div style="display:flex;gap:3px;justify-content:center;">
+              <button onclick="verComprobanteDetalle('${c.id}')" style="background:#e0e7ff;border:none;color:#3730a3;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:0.75rem;" title="Ver comprobante">👁</button>
+              <button onclick="reprocesarDetalleOCR('${c.id}')" style="background:#fef3c7;border:none;color:#92400e;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:0.75rem;" title="Reprocesar OCR">🔄</button>
+            </div>
           </td>
         </tr>
       `;
