@@ -8112,15 +8112,13 @@ function formatearFechaOCR(fecha) {
   }
   
   // Si viene como ISO (2026-04-09T00:00:00.000Z)
-  if (str.includes('T')) {
+  if (str.includes('T') || str.includes('-')) {
     try {
       const d = new Date(str);
-      const dia = ('0' + d.getDate()).slice(-2);
-      const mes = ('0' + (d.getMonth() + 1)).slice(-2);
-      const anio = d.getFullYear();
-      const hora = ('0' + d.getHours()).slice(-2);
-      const min = ('0' + d.getMinutes()).slice(-2);
-      return `${dia}/${mes}/${anio} ${hora}:${min}`;
+      const dia = ('0' + d.getUTCDate()).slice(-2);
+      const mes = ('0' + (d.getUTCMonth() + 1)).slice(-2);
+      const anio = d.getUTCFullYear();
+      return `${dia}/${mes}/${anio}`;
     } catch(e) {
       return str;
     }
@@ -8260,15 +8258,14 @@ async function verDetalleOCR() {
       return;
     }
 
-    // Detectar IC duplicados por FileId
-    const fileIdVisto = {};
+    // Detectar IC duplicados por JugadorId + Mes (si el mismo jugador tiene 2 comprobantes en el mismo mes)
+    const jugadorMesVisto = {};
     comprobantes.forEach(c => {
-      if (c.fileId) {
-        if (fileIdVisto[c.fileId]) {
-          c.icDuplicado = true; // Marcar como duplicado
-        } else {
-          fileIdVisto[c.fileId] = true;
-        }
+      const clave = `${c.jugadorId}_${c.mes}`;
+      if (jugadorMesVisto[clave]) {
+        c.icDuplicado = true; // Marcar como duplicado (el segundo)
+      } else {
+        jugadorMesVisto[clave] = true;
       }
     });
 
@@ -8278,7 +8275,7 @@ async function verDetalleOCR() {
     const conOCR = comprobantes.filter(c => c.ocrProcesado);
     const sinOCR = comprobantes.filter(c => !c.ocrProcesado);
     
-    conOCR.forEach(c => {
+    comprobantes.forEach(c => {
       if (c.icDuplicado) {
         duplicadosIC++;
       } else {
@@ -8293,8 +8290,9 @@ async function verDetalleOCR() {
         <div style="font-size:0.9rem;color:#15803d;margin-bottom:8px;">💰 Recaudación de <strong>${mesSeleccionado}</strong></div>
         <div style="font-size:2.5rem;font-weight:700;color:#15803d;">$${totalMonto.toLocaleString('es-AR')}</div>
         <div style="font-size:0.85rem;color:var(--gris3);margin-top:4px;">
-          ${conOCR.length} con OCR
+          ${comprobantes.length - duplicadosIC} comprobantes únicos
           ${sinOCR.length > 0 ? ` · <span style="color:#b45309;">${sinOCR.length} sin procesar</span>` : ''}
+          ${duplicadosIC > 0 ? ` · <span style="color:#6366f1;">${duplicadosIC} IC duplicados</span>` : ''}
           ${duplicadosIC > 0 ? ` · <span style="color:#6366f1;">${duplicadosIC} IC duplicados (no suman)</span>` : ''}
         </div>
       </div>
