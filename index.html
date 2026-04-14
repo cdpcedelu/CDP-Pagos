@@ -8258,10 +8258,12 @@ async function verDetalleOCR() {
       return;
     }
 
-    // Detectar IC duplicados por JugadorId + Mes (si el mismo jugador tiene 2 comprobantes en el mismo mes)
+    // Detectar IC duplicados por nombre de jugador + Mes (si el mismo jugador tiene 2 comprobantes en el mismo mes)
     const jugadorMesVisto = {};
     comprobantes.forEach(c => {
-      const clave = `${c.jugadorId}_${c.mes}`;
+      // Usar nombre del jugador (sin el "(IC)") + mes como clave
+      const nombreLimpio = c.jugador.replace(/\s*\(IC\)\s*/gi, '').trim();
+      const clave = `${nombreLimpio}_${c.mes}`;
       if (jugadorMesVisto[clave]) {
         c.icDuplicado = true; // Marcar como duplicado (el segundo)
       } else {
