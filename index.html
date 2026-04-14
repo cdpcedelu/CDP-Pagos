@@ -7592,10 +7592,10 @@ function renderListaOCR(comprobantes, containerId, conResultados = false) {
             ${conResultados ? '<th style="padding:8px;width:30px;border-bottom:1px solid #e5e7eb;"></th>' : ''}
             <th style="padding:8px;text-align:left;border-bottom:1px solid #e5e7eb;">Jugador</th>
             <th style="padding:8px;text-align:left;border-bottom:1px solid #e5e7eb;">Equipo</th>
-            <th style="padding:8px;text-align:center;border-bottom:1px solid #e5e7eb;">Tipo</th>
             <th style="padding:8px;text-align:center;border-bottom:1px solid #e5e7eb;">Mes</th>
             ${conResultados ? `
               <th style="padding:8px;text-align:center;border-bottom:1px solid #e5e7eb;">Fecha</th>
+              <th style="padding:8px;text-align:center;border-bottom:1px solid #e5e7eb;">Tipo</th>
               <th style="padding:8px;text-align:right;border-bottom:1px solid #e5e7eb;">Monto</th>
               <th style="padding:8px;text-align:center;border-bottom:1px solid #e5e7eb;">Acciones</th>
             ` : ''}
@@ -7617,12 +7617,12 @@ function renderListaOCR(comprobantes, containerId, conResultados = false) {
         ${conResultados ? `<td style="padding:8px;text-align:center;border-bottom:1px solid #f1f5f9;"><input type="checkbox" class="ocr-checkbox" data-id="${c.id}"></td>` : ''}
         <td style="padding:8px;border-bottom:1px solid #f1f5f9;">${c.jugador}${icBadge}${ocrBadge}</td>
         <td style="padding:8px;border-bottom:1px solid #f1f5f9;">${c.equipo}</td>
-        <td style="padding:8px;text-align:center;border-bottom:1px solid #f1f5f9;">
-          <span style="font-size:0.75rem;padding:2px 6px;border-radius:4px;background:${tipoSocio === 'PASIVO' ? '#fef3c7' : '#e0e7ff'};color:${tipoSocio === 'PASIVO' ? '#92400e' : '#3730a3'};">${tipoSocio}</span>
-        </td>
         <td style="padding:8px;text-align:center;border-bottom:1px solid #f1f5f9;">${c.mes}</td>
         ${conResultados ? `
           <td style="padding:8px;text-align:center;border-bottom:1px solid #f1f5f9;">${formatearFechaOCR(c.fechaDetectada || c.fecha)}</td>
+          <td style="padding:8px;text-align:center;border-bottom:1px solid #f1f5f9;">
+            <span style="font-size:0.75rem;padding:2px 6px;border-radius:4px;background:${tipoSocio.toUpperCase().includes('COL') ? '#dcfce7' : (tipoSocio === 'PASIVO' ? '#fef3c7' : '#e0e7ff')};color:${tipoSocio.toUpperCase().includes('COL') ? '#15803d' : (tipoSocio === 'PASIVO' ? '#92400e' : '#3730a3')};">${tipoSocio}</span>
+          </td>
           <td style="padding:8px;text-align:right;border-bottom:1px solid #f1f5f9;font-weight:600;${fueraRango ? 'color:#b45309;' : ''}">${c.montoDetectado || c.monto || '—'}</td>
           <td style="padding:8px;text-align:center;border-bottom:1px solid #f1f5f9;">
             <div style="display:flex;gap:3px;justify-content:center;flex-wrap:wrap;">
