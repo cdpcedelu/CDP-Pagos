@@ -7968,8 +7968,8 @@ async function procesarRecaudacionOCR() {
       return;
     }
 
-    // Calcular tiempo estimado (~3 seg por comprobante nuevo)
-    const tiempoEstimado = sinProcesar.length * 3;
+    // Calcular tiempo estimado (~6 seg por comprobante nuevo)
+    const tiempoEstimado = sinProcesar.length * 6;
     const minutos = Math.floor(tiempoEstimado / 60);
     const segundos = tiempoEstimado % 60;
     const tiempoStr = minutos > 0 ? `${minutos}m ${segundos}s` : `${segundos}s`;
