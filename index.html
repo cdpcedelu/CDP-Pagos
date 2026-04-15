@@ -7693,6 +7693,7 @@ async function reprocesarOCRIndividual(compId) {
       // Si el backend no encontró monto, intentar extraerlo en el frontend
       let montoFinal = res.monto;
       let montoNumFinal = res.montoNum;
+      let extraidoPorFrontend = false;
       
       if (!montoFinal && res.texto) {
         const textoTest = res.texto.replace(/\n/g, ' ').replace(/\r/g, ' ');
@@ -7706,11 +7707,22 @@ async function reprocesarOCRIndividual(compId) {
             if (num >= 16000 && num <= 80000) {
               montoFinal = '$' + m;
               montoNumFinal = num;
+              extraidoPorFrontend = true;
               console.log('Frontend extrajo monto:', montoFinal, montoNumFinal);
               break;
             }
           }
         }
+      }
+      
+      // Si el frontend extrajo el monto, guardarlo en el backend
+      if (extraidoPorFrontend && montoFinal) {
+        console.log('Guardando monto en backend...');
+        api('actualizarMontoOCR', {
+          compId: c.id,
+          monto: montoFinal,
+          montoNum: montoNumFinal
+        }).then(r => console.log('Monto guardado:', r));
       }
       
       // Actualizar datos en memoria
@@ -8240,6 +8252,7 @@ async function reprocesarDetalleOCR(compId) {
       // Si el backend no encontró monto, intentar extraerlo en el frontend
       let montoFinal = res.monto;
       let montoNumFinal = res.montoNum;
+      let extraidoPorFrontend = false;
       
       if (!montoFinal && res.texto) {
         const textoTest = res.texto.replace(/\n/g, ' ').replace(/\r/g, ' ');
@@ -8252,6 +8265,7 @@ async function reprocesarDetalleOCR(compId) {
             if (num >= 16000 && num <= 80000) {
               montoFinal = '$' + m;
               montoNumFinal = num;
+              extraidoPorFrontend = true;
               console.log('Frontend extrajo monto:', montoFinal);
               break;
             }
@@ -8259,6 +8273,16 @@ async function reprocesarDetalleOCR(compId) {
         }
       }
       console.log('Monto final:', montoFinal);
+      
+      // Si el frontend extrajo el monto, guardarlo en el backend
+      if (extraidoPorFrontend && montoFinal) {
+        console.log('Guardando monto en backend...');
+        api('actualizarMontoOCR', {
+          compId: c.id,
+          monto: montoFinal,
+          montoNum: montoNumFinal
+        }).then(r => console.log('Monto guardado:', r));
+      }
       
       // Actualizar datos en memoria
       c.fechaDetectada = res.fecha;
