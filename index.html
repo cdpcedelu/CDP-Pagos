@@ -8099,6 +8099,7 @@ async function procesarRecaudacionOCR() {
             montoDetectado: res.monto,
             montoNum: res.montoNum,
             fueraDeRango: res.fueraDeRango,
+            fechaNoCoincide: res.fechaNoCoincide,
             ocrProcesado: true
           });
         } else {
@@ -8291,6 +8292,7 @@ async function reprocesarDetalleOCR(compId) {
       c.montoDetectado = montoFinal;
       c.montoNum = montoNumFinal;
       c.fueraDeRango = res.fueraDeRango;
+      c.fechaNoCoincide = res.fechaNoCoincide;
       c.ocrProcesado = true;
       c.esAsumido = false;
       
@@ -8298,12 +8300,15 @@ async function reprocesarDetalleOCR(compId) {
       if (row) {
         const cells = row.querySelectorAll('td');
         console.log('Cantidad de celdas:', cells.length);
-        // Fecha (columna 2)
-        cells[2].textContent = formatearFechaOCR(res.fecha);
+        // Fecha (columna 2) - rojo si no coincide
+        cells[2].innerHTML = `<span style="${res.fechaNoCoincide ? 'color:#dc2626;font-weight:600;' : ''}">${formatearFechaOCR(res.fecha)}</span>`;
         // Monto (columna 3)
         cells[3].innerHTML = `<span style="font-weight:600;color:${montoFinal ? '#15803d' : '#b45309'};">${montoFinal || '—'}</span>`;
         // Estado (columna 4)
-        if (montoFinal) {
+        if (res.fechaNoCoincide) {
+          cells[4].innerHTML = '<span style="background:#ef4444;color:#fff;padding:2px 8px;border-radius:4px;font-size:0.75rem;">⚠ Fecha</span>';
+          row.style.background = '#fecaca';
+        } else if (montoFinal) {
           cells[4].innerHTML = '<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:4px;font-size:0.75rem;">✓ OCR</span>';
           row.style.background = '';
         }
@@ -8492,12 +8497,26 @@ async function verDetalleOCR() {
       const fecha = formatearFechaOCR(c.fechaDetectada);
       const tieneOCR = c.ocrProcesado;
       const fueraRango = c.fueraDeRango;
+      const fechaNoCoincide = c.fechaNoCoincide;
       const esDuplicadoIC = c.icDuplicado;
       const esAsumido = c.esAsumido;
-      const bgColor = esDuplicadoIC ? '#e0e7ff' : (esAsumido ? '#fef3c7' : (fueraRango ? '#fff9c4' : (idx % 2 === 0 ? '#fff' : '#f8fafc')));
+      
+      // Prioridad de colores: rojo (fecha no coincide) > amarillo (fuera rango/asumido) > azul (IC dup)
+      let bgColor;
+      if (fechaNoCoincide) {
+        bgColor = '#fecaca';  // Rojo claro
+      } else if (esDuplicadoIC) {
+        bgColor = '#e0e7ff';
+      } else if (esAsumido || fueraRango) {
+        bgColor = '#fef3c7';
+      } else {
+        bgColor = idx % 2 === 0 ? '#fff' : '#f8fafc';
+      }
 
       let estadoBadge = '';
-      if (esDuplicadoIC) {
+      if (fechaNoCoincide) {
+        estadoBadge = '<span style="background:#ef4444;color:#fff;padding:2px 8px;border-radius:4px;font-size:0.75rem;">⚠ Fecha</span>';
+      } else if (esDuplicadoIC) {
         estadoBadge = '<span style="background:#c7d2fe;color:#4338ca;padding:2px 8px;border-radius:4px;font-size:0.75rem;">IC-Dup</span>';
       } else if (esAsumido) {
         estadoBadge = '<span style="background:#fbbf24;color:#78350f;padding:2px 8px;border-radius:4px;font-size:0.75rem;">Asumido</span>';
@@ -8511,7 +8530,7 @@ async function verDetalleOCR() {
         <tr style="background:${bgColor};" data-comp-id="${c.id}">
           <td style="padding:10px;border-bottom:1px solid #f1f5f9;">${c.jugador}${c.esIC ? ' <span style="background:#dbeafe;color:#1d4ed8;padding:1px 4px;border-radius:3px;font-size:0.65rem;">IC</span>' : ''}</td>
           <td style="padding:10px;border-bottom:1px solid #f1f5f9;">${c.equipo}</td>
-          <td style="padding:10px;text-align:center;border-bottom:1px solid #f1f5f9;">${fecha}</td>
+          <td style="padding:10px;text-align:center;border-bottom:1px solid #f1f5f9;${fechaNoCoincide ? 'color:#dc2626;font-weight:600;' : ''}">${fecha}</td>
           <td style="padding:10px;text-align:right;border-bottom:1px solid #f1f5f9;font-weight:600;${esDuplicadoIC ? 'color:#6366f1;text-decoration:line-through;' : (esAsumido ? 'color:#f59e0b;' : (fueraRango ? 'color:#b45309;' : 'color:#15803d;'))}">${montoMostrar}</td>
           <td style="padding:10px;text-align:center;border-bottom:1px solid #f1f5f9;">${estadoBadge}</td>
           <td style="padding:10px;text-align:center;border-bottom:1px solid #f1f5f9;">
