@@ -8245,6 +8245,8 @@ async function reprocesarDetalleOCR(compId) {
     });
     
     console.log('Respuesta API:', res);
+    console.log('MimeType:', res.mimeType);
+    console.log('Método usado:', res.metodoUsado);
     console.log('Texto (primeros 300):', res.texto?.substring(0, 300));
     console.log('Monto backend:', res.monto);
     
