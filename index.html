@@ -7606,20 +7606,32 @@ function renderListaOCR(comprobantes, containerId, conResultados = false) {
 
   comprobantes.forEach((c, idx) => {
     const fueraRango = c.fueraDeRango || (c.montoNum && (c.montoNum < 16000 || c.montoNum > 80000));
+    const fechaNoCoincide = c.fechaNoCoincide;
     const tieneOCR = c.ocrProcesado || c.fechaDetectada || c.montoDetectado;
-    const bgColor = fueraRango ? '#fff9c4' : (idx % 2 === 0 ? '#fff' : '#f8fafc');
+    
+    // Prioridad: rojo (fecha no coincide) > amarillo (fuera rango)
+    let bgColor;
+    if (fechaNoCoincide) {
+      bgColor = '#fecaca';  // Rojo claro
+    } else if (fueraRango) {
+      bgColor = '#fff9c4';  // Amarillo
+    } else {
+      bgColor = idx % 2 === 0 ? '#fff' : '#f8fafc';
+    }
+    
     const tipoSocio = c.tipoSocio || '?';
     const icBadge = c.esIC ? '<span style="background:#dbeafe;color:#1d4ed8;padding:1px 4px;border-radius:3px;font-size:0.7rem;margin-left:4px;">IC</span>' : '';
     const ocrBadge = tieneOCR ? '<span style="background:#dcfce7;color:#15803d;padding:1px 4px;border-radius:3px;font-size:0.65rem;margin-left:4px;">OCR</span>' : '<span style="background:#fef3c7;color:#92400e;padding:1px 4px;border-radius:3px;font-size:0.65rem;margin-left:4px;">sin OCR</span>';
+    const fechaBadge = fechaNoCoincide ? '<span style="background:#ef4444;color:#fff;padding:1px 4px;border-radius:3px;font-size:0.65rem;margin-left:4px;">⚠ Fecha</span>' : '';
     
     html += `
       <tr style="background:${bgColor};" data-comp-id="${c.id}">
         ${conResultados ? `<td style="padding:8px;text-align:center;border-bottom:1px solid #f1f5f9;"><input type="checkbox" class="ocr-checkbox" data-id="${c.id}"></td>` : ''}
-        <td style="padding:8px;border-bottom:1px solid #f1f5f9;">${c.jugador}${icBadge}${ocrBadge}</td>
+        <td style="padding:8px;border-bottom:1px solid #f1f5f9;">${c.jugador}${icBadge}${ocrBadge}${fechaBadge}</td>
         <td style="padding:8px;border-bottom:1px solid #f1f5f9;">${c.equipo}</td>
         <td style="padding:8px;text-align:center;border-bottom:1px solid #f1f5f9;">${c.mes}</td>
         ${conResultados ? `
-          <td style="padding:8px;text-align:center;border-bottom:1px solid #f1f5f9;">${formatearFechaOCR(c.fechaDetectada || c.fecha)}</td>
+          <td style="padding:8px;text-align:center;border-bottom:1px solid #f1f5f9;${fechaNoCoincide ? 'color:#dc2626;font-weight:600;' : ''}">${formatearFechaOCR(c.fechaDetectada || c.fecha)}</td>
           <td style="padding:8px;text-align:center;border-bottom:1px solid #f1f5f9;">
             <span style="font-size:0.75rem;padding:2px 6px;border-radius:4px;background:${tipoSocio.toUpperCase().includes('COL') ? '#dcfce7' : (tipoSocio === 'PASIVO' ? '#fef3c7' : '#e0e7ff')};color:${tipoSocio.toUpperCase().includes('COL') ? '#15803d' : (tipoSocio === 'PASIVO' ? '#92400e' : '#3730a3')};">${tipoSocio}</span>
           </td>
@@ -7730,6 +7742,7 @@ async function reprocesarOCRIndividual(compId) {
       c.montoDetectado = montoFinal;
       c.montoNum = montoNumFinal;
       c.fueraDeRango = res.fueraDeRango;
+      c.fechaNoCoincide = res.fechaNoCoincide;
       c.ocrProcesado = true;
       
       // Actualizar la fila
@@ -7737,13 +7750,19 @@ async function reprocesarOCRIndividual(compId) {
       if (row) {
         const cells = row.querySelectorAll('td');
         // Índices: 0=checkbox, 1=jugador, 2=equipo, 3=mes, 4=fecha, 5=tipo, 6=monto, 7=acciones
-        // Fecha (índice 4)
-        cells[4].textContent = res.fecha || '—';
+        // Fecha (índice 4) - rojo si no coincide
+        cells[4].innerHTML = `<span style="${res.fechaNoCoincide ? 'color:#dc2626;font-weight:600;' : ''}">${res.fecha || '—'}</span>`;
         // Monto (índice 6)
         cells[6].textContent = montoFinal || '—';
         cells[6].style.color = res.fueraDeRango ? '#b45309' : '';
-        // Background si fuera de rango
-        row.style.background = res.fueraDeRango ? '#fff9c4' : '';
+        // Background: rojo > amarillo > normal
+        if (res.fechaNoCoincide) {
+          row.style.background = '#fecaca';
+        } else if (res.fueraDeRango) {
+          row.style.background = '#fff9c4';
+        } else {
+          row.style.background = '';
+        }
       }
       
       showToast(`OCR reprocesado: ${montoFinal || 'sin monto'}`, 'success');
