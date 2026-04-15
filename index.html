@@ -8201,15 +8201,24 @@ function verComprobanteDetalle(compId) {
 
 // Reprocesar comprobante desde la lista de detalle
 async function reprocesarDetalleOCR(compId) {
+  console.log('=== REPROCESAR DETALLE INICIO ===');
+  console.log('compId:', compId);
+  
   const c = window._ocrDetalleComprobantes?.find(x => x.id === compId);
   if (!c) {
+    console.log('Comprobante no encontrado en memoria');
     showToast('Comprobante no encontrado', 'error');
     return;
   }
+  console.log('Comprobante encontrado:', c.jugador);
   
-  const btn = event.target;
-  btn.disabled = true;
-  btn.textContent = '⏳';
+  // Buscar el botón por el compId
+  const row = document.querySelector(`tr[data-comp-id="${compId}"]`);
+  const btn = row?.querySelector('button[title="Reprocesar OCR"]');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '⏳';
+  }
   
   try {
     const res = await api('procesarOCRComprobante', {
@@ -8223,10 +8232,8 @@ async function reprocesarDetalleOCR(compId) {
       forzar: true
     });
     
-    // DEBUG
-    console.log('=== DETALLE OCR DEBUG ===');
-    console.log('Jugador:', c.jugador);
-    console.log('Texto:', res.texto?.substring(0, 200));
+    console.log('Respuesta API:', res);
+    console.log('Texto (primeros 300):', res.texto?.substring(0, 300));
     console.log('Monto backend:', res.monto);
     
     if (res.ok) {
@@ -8238,6 +8245,7 @@ async function reprocesarDetalleOCR(compId) {
         const textoTest = res.texto.replace(/\n/g, ' ').replace(/\r/g, ' ');
         const regexAmericano = /([0-9]{1,3}(?:,[0-9]{3})+\.[0-9]{2})/g;
         const matchesAm = textoTest.match(regexAmericano);
+        console.log('Matches americano:', matchesAm);
         if (matchesAm && matchesAm.length > 0) {
           for (let m of matchesAm) {
             const num = parseFloat(m.replace(/,/g, ''));
@@ -8251,7 +8259,6 @@ async function reprocesarDetalleOCR(compId) {
         }
       }
       console.log('Monto final:', montoFinal);
-      console.log('=========================');
       
       // Actualizar datos en memoria
       c.fechaDetectada = res.fecha;
@@ -8259,23 +8266,21 @@ async function reprocesarDetalleOCR(compId) {
       c.montoNum = montoNumFinal;
       c.fueraDeRango = res.fueraDeRango;
       c.ocrProcesado = true;
-      c.esAsumido = false; // Ya no es asumido, tiene monto real
+      c.esAsumido = false;
       
-      // Actualizar la fila - índices: 0=Jugador, 1=Equipo, 2=Fecha, 3=Monto, 4=Estado, 5=Ver
-      const row = document.querySelector(`tr[data-comp-id="${compId}"]`);
+      // Actualizar la fila - 0:Jugador, 1:Equipo, 2:Fecha, 3:Monto, 4:Estado, 5:Ver
       if (row) {
         const cells = row.querySelectorAll('td');
+        console.log('Cantidad de celdas:', cells.length);
         // Fecha (columna 2)
         cells[2].textContent = formatearFechaOCR(res.fecha);
         // Monto (columna 3)
-        cells[3].textContent = montoFinal || '—';
-        cells[3].style.color = montoFinal ? '#15803d' : '#b45309';
+        cells[3].innerHTML = `<span style="font-weight:600;color:${montoFinal ? '#15803d' : '#b45309'};">${montoFinal || '—'}</span>`;
         // Estado (columna 4)
         if (montoFinal) {
           cells[4].innerHTML = '<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:4px;font-size:0.75rem;">✓ OCR</span>';
+          row.style.background = '';
         }
-        // Background
-        row.style.background = res.fueraDeRango ? '#fff9c4' : (!montoFinal ? '#fef2f2' : '');
       }
       
       showToast(`OCR: ${montoFinal || 'sin monto detectado'}`, montoFinal ? 'success' : 'error');
@@ -8283,10 +8288,14 @@ async function reprocesarDetalleOCR(compId) {
       showToast(res.msg || 'Error al reprocesar', 'error');
     }
   } catch(e) {
+    console.log('Error:', e);
     showToast('Error: ' + e.message, 'error');
   } finally {
-    btn.disabled = false;
-    btn.textContent = '🔄';
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '🔄';
+    }
+    console.log('=== REPROCESAR DETALLE FIN ===');
   }
 }
 
