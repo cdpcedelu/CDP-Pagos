@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- PAGOS CDP — Frontend v5.47 — 2026-04-10 09:40 ARG (+ URL carnets corregida) -->
+<!-- PAGOS CDP — Frontend v5.48 — 2026-04-30 21:45 ARG (+ sistema caché localStorage para carga rápida) -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -1250,6 +1250,78 @@ let APP = {
 };
 
 // ══════════════════════════════════════════════════════════════════
+// SISTEMA DE CACHÉ - Mejora tiempos de carga
+// ══════════════════════════════════════════════════════════════════
+const CACHE = {
+  // Tiempo máximo de caché en segundos
+  TTL: {
+    delegadoInit: 120,      // 2 minutos - datos del delegado
+    habilitaciones: 120,    // 2 minutos - habilitaciones
+    equipos: 600,           // 10 minutos - lista de equipos (cambia poco)
+  },
+  
+  // Guarda datos en localStorage con timestamp
+  set: function(key, data, equipoId = '') {
+    try {
+      const cacheKey = equipoId ? `cdp_${key}_${equipoId}` : `cdp_${key}`;
+      const item = {
+        data: data,
+        timestamp: Date.now(),
+        version: '1.0'
+      };
+      localStorage.setItem(cacheKey, JSON.stringify(item));
+    } catch(e) {
+      console.warn('[CACHE] Error guardando:', e);
+    }
+  },
+  
+  // Obtiene datos del cache si no expiraron
+  get: function(key, equipoId = '') {
+    try {
+      const cacheKey = equipoId ? `cdp_${key}_${equipoId}` : `cdp_${key}`;
+      const item = localStorage.getItem(cacheKey);
+      if (!item) return null;
+      
+      const parsed = JSON.parse(item);
+      const ttl = this.TTL[key] || 60;
+      const age = (Date.now() - parsed.timestamp) / 1000;
+      
+      if (age > ttl) {
+        // Expirado pero lo devolvemos marcado como stale
+        return { ...parsed.data, _stale: true, _age: Math.round(age) };
+      }
+      
+      return { ...parsed.data, _fresh: true, _age: Math.round(age) };
+    } catch(e) {
+      return null;
+    }
+  },
+  
+  // Invalida cache específico
+  invalidate: function(key, equipoId = '') {
+    try {
+      const cacheKey = equipoId ? `cdp_${key}_${equipoId}` : `cdp_${key}`;
+      localStorage.removeItem(cacheKey);
+    } catch(e) {}
+  },
+  
+  // Invalida todo el cache del equipo (cuando se sube comprobante, etc)
+  invalidateEquipo: function(equipoId) {
+    this.invalidate('delegadoInit', equipoId);
+    this.invalidate('habilitaciones', equipoId);
+  },
+  
+  // Limpia todo el cache
+  clear: function() {
+    try {
+      Object.keys(localStorage).forEach(k => {
+        if (k.startsWith('cdp_')) localStorage.removeItem(k);
+      });
+    } catch(e) {}
+  }
+};
+
+// ══════════════════════════════════════════════════════════════════
 // EQUIPOS HARDCODED (fallback mientras se carga del sheet)
 // ══════════════════════════════════════════════════════════════════
 const EQUIPOS_FALLBACK = [
@@ -1600,18 +1672,43 @@ function navTo(vista, btn) {
 // VISTA DELEGADO
 // ══════════════════════════════════════════════════════════════════
 // ── RENDER DELEGADO ──────────────────────────────────────────────
-async function renderDelegado(vista = 'mis-comprobantes') {
+async function renderDelegado(vista = 'mis-comprobantes', forceRefresh = false) {
   const cnt = document.getElementById('main-content');
-  cnt.innerHTML = '<div class="loading"><div class="spinner"></div> Cargando...</div>';
-
   const equipoId = APP.equipo.id;
   console.log('[CDP] renderDelegado →', vista, 'equipoId:', equipoId);
 
+  // 1. Intentar mostrar datos cacheados inmediatamente
+  const cached = !forceRefresh ? CACHE.get('delegadoInit', equipoId) : null;
+  
+  if (cached && (cached._fresh || cached._stale)) {
+    // Mostrar datos cacheados instantáneamente
+    console.log('[CDP] Usando cache (edad:', cached._age + 's, ' + (cached._fresh ? 'fresco' : 'stale') + ')');
+    APP.jugadores = cached.jugadores || [];
+    APP.comprobantes = cached.comprobantes || [];
+    APP._parametrosCache = cached.parametros || null;
+    APP.carnetsHabilitados = cached.parametros?.carnetsHabilitados || false;
+    
+    if (vista === 'historial') renderHistorial(cnt);
+    else renderMisComprobantes(cnt);
+    
+    // Si está stale, actualizar en background
+    if (cached._stale) {
+      console.log('[CDP] Cache stale, actualizando en background...');
+      actualizarDelegadoEnBackground(equipoId, vista);
+    }
+    return;
+  }
+
+  // 2. Sin caché: mostrar spinner y cargar
+  cnt.innerHTML = '<div class="loading"><div class="spinner"></div> Cargando...</div>';
+
   try {
-    // UNA SOLA LLAMADA optimizada que trae todo junto
     console.log('[CDP] Pidiendo datos (getDelegadoInit)...');
     const data = await apiConTimeout('getDelegadoInit', { equipoId }, 25000);
     if (!data.ok) throw new Error(data.msg || 'Error al cargar datos');
+    
+    // Guardar en caché
+    CACHE.set('delegadoInit', data, equipoId);
     
     APP.jugadores = data.jugadores || [];
     APP.comprobantes = data.comprobantes || [];
@@ -1623,7 +1720,26 @@ async function renderDelegado(vista = 'mis-comprobantes') {
     else renderMisComprobantes(cnt);
   } catch(e) {
     console.error('[CDP] Error en renderDelegado:', e);
-    cnt.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div>Error al cargar: ${e.message}<br><br><button class="btn-primary" onclick="renderDelegado()">🔄 Reintentar</button></div>`;
+    cnt.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div>Error al cargar: ${e.message}<br><br><button class="btn-primary" onclick="renderDelegado('${vista}', true)">🔄 Reintentar</button></div>`;
+  }
+}
+
+// Actualiza datos en background sin bloquear la UI
+async function actualizarDelegadoEnBackground(equipoId, vistaActual) {
+  try {
+    const data = await apiConTimeout('getDelegadoInit', { equipoId }, 25000);
+    if (data.ok) {
+      CACHE.set('delegadoInit', data, equipoId);
+      APP.jugadores = data.jugadores || [];
+      APP.comprobantes = data.comprobantes || [];
+      APP._parametrosCache = data.parametros || null;
+      APP.carnetsHabilitados = data.parametros?.carnetsHabilitados || false;
+      console.log('[CDP] Cache actualizado en background');
+      // Mostrar indicador sutil de actualización
+      showToast('Datos actualizados', 'success', 1500);
+    }
+  } catch(e) {
+    console.warn('[CDP] Error actualizando en background:', e.message);
   }
 }
 
@@ -3374,6 +3490,10 @@ async function confirmarCarga() {
     if (data.ok) {
       cerrarModal('modal-cargar');
       showToast('¡Comprobante cargado correctamente!', 'success');
+      
+      // Invalidar caché para que se recarguen los datos frescos
+      CACHE.invalidateEquipo(APP.equipo.id);
+      
       // Actualizar comprobantes localmente sin recargar todo
       if (data.comprobante) {
         // Si reemplazó uno existente, marcarlo
@@ -3553,55 +3673,98 @@ function renderPaginacion(total) {
 }
 
 let toastTimeout;
-function showToast(msg, tipo = 'info') {
+function showToast(msg, tipo = 'info', duration = 4000) {
   const t = document.getElementById('toast');
   const icons = { success:'✅', error:'❌', info:'ℹ️' };
   t.innerHTML = `<span>${icons[tipo]||''}</span><span>${msg}</span>`;
   t.className = `toast ${tipo} show`;
   clearTimeout(toastTimeout);
-  toastTimeout = setTimeout(() => t.classList.remove('show'), 4000);
+  toastTimeout = setTimeout(() => t.classList.remove('show'), duration);
 }
 
 // ══════════════════════════════════════════════════════════════════
 // HABILITACIONES (pestaña delegado)
 // ══════════════════════════════════════════════════════════════════
-async function renderHabilitaciones() {
+async function renderHabilitaciones(forceRefresh = false) {
   const cnt = document.getElementById('main-content');
+  const equipoId = APP.equipo.id;
+  
+  // 1. Intentar mostrar datos cacheados inmediatamente
+  const cached = !forceRefresh ? CACHE.get('habilitaciones', equipoId) : null;
+  
+  if (cached && (cached._fresh || cached._stale)) {
+    console.log('[CDP] Habilitaciones desde cache (edad:', cached._age + 's)');
+    renderHabilitacionesUI(cnt, cached);
+    
+    // Si está stale, actualizar en background
+    if (cached._stale) {
+      actualizarHabilitacionesEnBackground(equipoId);
+    }
+    return;
+  }
+  
+  // 2. Sin caché: mostrar spinner y cargar
   cnt.innerHTML = '<div class="loading"><div class="spinner"></div> Cargando habilitaciones...</div>';
+  
   try {
-    const data = await api('getHabilitaciones', { equipoId: APP.equipo.id });
+    const data = await api('getHabilitaciones', { equipoId });
     if (!data.ok) throw new Error(data.msg);
-    const { jugadores, mesActual, mesesRequeridos, mesesMostrar } = data;
-    // Guardar para uso de enviarEstadoWA
-    APP._habilitacionesCache = { jugadores, mesActual };
-    const habLabelMas = getLabelMas(APP.equipo.cat);
+    
+    // Guardar en caché
+    CACHE.set('habilitaciones', data, equipoId);
+    
+    renderHabilitacionesUI(cnt, data);
+  } catch(e) {
+    cnt.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div>Error: ${e.message}<br><br><button class="btn-primary" onclick="renderHabilitaciones(true)">🔄 Reintentar</button></div>`;
+  }
+}
 
-    const habilitados = jugadores.filter(j => j.estado === 'Habilitado').length;
-    const iAdmin      = jugadores.filter(j => j.estado === 'I. Administrativa').length;
-    const iMedica     = jugadores.filter(j => j.estado === 'I. Medica' || j.estado === 'I. Médica').length;
-    const iDeportiva  = jugadores.filter(j => j.estado === 'I. Deportiva').length;
+// Actualiza habilitaciones en background
+async function actualizarHabilitacionesEnBackground(equipoId) {
+  try {
+    const data = await api('getHabilitaciones', { equipoId });
+    if (data.ok) {
+      CACHE.set('habilitaciones', data, equipoId);
+      console.log('[CDP] Habilitaciones actualizadas en background');
+    }
+  } catch(e) {
+    console.warn('[CDP] Error actualizando habilitaciones:', e.message);
+  }
+}
 
-    const estadoColor = {
-      'Habilitado':        { bg:'#dcfce7', color:'#15803d', icono:'✅' },
-      'I. Administrativa': { bg:'#fef9c3', color:'#854d0e', icono:'💰' },
-      'I. Medica':         { bg:'#fee2e2', color:'#b91c1c', icono:'🏥' },
-      'I. Médica':         { bg:'#fee2e2', color:'#b91c1c', icono:'🏥' },
-      'I. Deportiva':      { bg:'#ffe4e6', color:'#9f1239', icono:'🚫' },
-    };
+// UI de habilitaciones (separada para reutilizar)
+function renderHabilitacionesUI(cnt, data) {
+  const { jugadores, mesActual, mesesRequeridos, mesesMostrar } = data;
+  // Guardar para uso de enviarEstadoWA
+  APP._habilitacionesCache = { jugadores, mesActual };
+  const habLabelMas = getLabelMas(APP.equipo.cat);
 
-    // Helper: abreviatura de mes (3 letras)
-    const mesCorto = m => m ? m.substring(0,3).toUpperCase() : '';
-    // Helper: badge de pago por mes
-    const pagoIconos = {
-      'Aprobado':   { emoji:'✅', bg:'#dcfce7', color:'#15803d', label:'Aprobado' },
-      'Pendiente':  { emoji:'⏳', bg:'#fef3c7', color:'#92400e', label:'Pendiente' },
-      'Rechazado':  { emoji:'❌', bg:'#fee2e2', color:'#b91c1c', label:'Rechazado' },
-      'Sin cargar': { emoji:'⬜', bg:'#f1f5f9', color:'#94a3b8', label:'Sin cargar' },
-    };
+  const habilitados = jugadores.filter(j => j.estado === 'Habilitado').length;
+  const iAdmin      = jugadores.filter(j => j.estado === 'I. Administrativa').length;
+  const iMedica     = jugadores.filter(j => j.estado === 'I. Medica' || j.estado === 'I. Médica').length;
+  const iDeportiva  = jugadores.filter(j => j.estado === 'I. Deportiva').length;
 
-    // Determinar si el mes en curso es exigido o está en gracia
-    const mesEnCursoExigido = mesesRequeridos && mesesRequeridos.indexOf(mesActual) >= 0;
-    const diaHoy = new Date().getDate();
+  const estadoColor = {
+    'Habilitado':        { bg:'#dcfce7', color:'#15803d', icono:'✅' },
+    'I. Administrativa': { bg:'#fef9c3', color:'#854d0e', icono:'💰' },
+    'I. Medica':         { bg:'#fee2e2', color:'#b91c1c', icono:'🏥' },
+    'I. Médica':         { bg:'#fee2e2', color:'#b91c1c', icono:'🏥' },
+    'I. Deportiva':      { bg:'#ffe4e6', color:'#9f1239', icono:'🚫' },
+  };
+
+  // Helper: abreviatura de mes (3 letras)
+  const mesCorto = m => m ? m.substring(0,3).toUpperCase() : '';
+  // Helper: badge de pago por mes
+  const pagoIconos = {
+    'Aprobado':   { emoji:'✅', bg:'#dcfce7', color:'#15803d', label:'Aprobado' },
+    'Pendiente':  { emoji:'⏳', bg:'#fef3c7', color:'#92400e', label:'Pendiente' },
+    'Rechazado':  { emoji:'❌', bg:'#fee2e2', color:'#b91c1c', label:'Rechazado' },
+    'Sin cargar': { emoji:'⬜', bg:'#f1f5f9', color:'#94a3b8', label:'Sin cargar' },
+  };
+
+  // Determinar si el mes en curso es exigido o está en gracia
+  const mesEnCursoExigido = mesesRequeridos && mesesRequeridos.indexOf(mesActual) >= 0;
+  const diaHoy = new Date().getDate();
 
     cnt.innerHTML = `
       <div class="equipo-header">
@@ -3694,9 +3857,6 @@ async function renderHabilitaciones() {
           </table>
         </div>
       </div>`;
-  } catch(e) {
-    cnt.innerHTML = `<div class="card"><div class="empty"><div class="empty-icon">⚠️</div>Error: ${e.message}</div></div>`;
-  }
 }
 
 // ══════════════════════════════════════════════════════════════════
