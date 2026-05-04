@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- PAGOS CDP — Frontend v5.48 — 2026-04-30 21:45 ARG (+ sistema caché localStorage para carga rápida) -->
+<!-- PAGOS CDP — Frontend v5.49 — 2026-05-04 10:30 ARG (+ excepciones de habilitación por equipo para IC) -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -2381,31 +2381,70 @@ async function renderPanelHabilitacionesAdmin() {
   cnt.appendChild(placeholder);
 
   try {
-    const data = await api('getResumenHabilitaciones');
+    // Cargar habilitaciones y excepciones en paralelo
+    const [data, dataExc] = await Promise.all([
+      api('getResumenHabilitaciones'),
+      api('getExcepcionesHab'),
+    ]);
     if (!data.ok) { placeholder.remove(); return; }
 
     const { totales, listas, totalIC, totalReal } = data;
+    const excepciones = (dataExc && dataExc.ok) ? (dataExc.excepciones || []) : [];
     const total = totales.habilitados + totales.iPago + totales.iEstudio + totales.iDeportiva + totales.iAdmin;
 
-    function renderLista(arr, color) {
+    // Si conSancionados, cada item muestra botón "Habilitar acá" (excepción de equipo)
+    function renderLista(arr, color, conSancionados) {
       if (!arr.length) return '<em style="color:var(--gris2);font-size:0.82rem">Ninguno</em>';
       const porEq = {};
-      arr.forEach(j => { if (!porEq[j.equipo]) porEq[j.equipo] = []; porEq[j.equipo].push(j.nombre); });
+      arr.forEach(j => { if (!porEq[j.equipo]) porEq[j.equipo] = []; porEq[j.equipo].push(j); });
       return Object.keys(porEq).sort().map(eq => `
         <div style="margin-bottom:8px">
           <div style="font-size:0.75rem;font-weight:700;color:var(--gris3);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:3px">${eq}</div>
-          ${porEq[eq].map(n => `<div style="font-size:0.83rem;padding:2px 0 2px 10px;border-left:3px solid ${color}">${n}</div>`).join('')}
+          ${porEq[eq].map(j => {
+            const nombre = (typeof j === 'string') ? j : j.nombre;
+            const jugId  = (typeof j === 'object' && j.jugadorId) ? j.jugadorId : '';
+            const eqId   = (typeof j === 'object' && j.equipoId)  ? j.equipoId  : '';
+            const btn = (conSancionados && jugId && eqId)
+              ? `<button onclick="habilitarExcepcion('${jugId}','${eqId}',${JSON.stringify(nombre).replace(/"/g,'&quot;')},${JSON.stringify(eq).replace(/"/g,'&quot;')})" style="font-size:0.7rem;padding:2px 8px;border-radius:6px;background:#dcfce7;color:#15803d;border:1px solid #16a34a;cursor:pointer;font-weight:700;white-space:nowrap" title="Habilitar a este jugador en este equipo (excepción)">✓ Habilitar acá</button>`
+              : '';
+            return `<div style="font-size:0.83rem;padding:3px 0 3px 10px;border-left:3px solid ${color};display:flex;align-items:center;justify-content:space-between;gap:8px">
+                      <span>${nombre}</span>
+                      ${btn}
+                    </div>`;
+          }).join('')}
         </div>`).join('');
     }
 
     const secciones = [
-      { label:'💰 Inhabilitados por pago',                           color:'#ef4444', bg:'#fff1f2', total: totales.iPago,             lista: listas.iPago             },
-      { label:'🏥 Inhabilitados por estudio',                        color:'#f59e0b', bg:'#fefce8', total: totales.iEstudio,           lista: listas.iEstudio          },
-      { label:'🚫 Inhabilitados por sanción',                        color:'#8b5cf6', bg:'#f5f3ff', total: totales.iDeportiva,         lista: listas.iDeportiva        },
-      { label:'⚙️ Inhab. administrativa',                            color:'#6b7280', bg:'#f9fafb', total: totales.iAdmin,             lista: listas.iAdmin            },
-      { label:'📅 Mes actual pago · meses anteriores pendientes',    color:'#0ea5e9', bg:'#f0f9ff', total: totales.mesOkDeudaAnterior, lista: listas.mesOkDeudaAnterior },
-      { label:'📋 Mes actual pago · estudios no aprobados',          color:'#f97316', bg:'#fff7ed', total: totales.mesOkSinEstudio,    lista: listas.mesOkSinEstudio   },
+      { label:'💰 Inhabilitados por pago',                           color:'#ef4444', bg:'#fff1f2', total: totales.iPago,             lista: listas.iPago,              conSancion:false },
+      { label:'🏥 Inhabilitados por estudio',                        color:'#f59e0b', bg:'#fefce8', total: totales.iEstudio,           lista: listas.iEstudio,           conSancion:false },
+      { label:'🚫 Inhabilitados por sanción',                        color:'#8b5cf6', bg:'#f5f3ff', total: totales.iDeportiva,         lista: listas.iDeportiva,         conSancion:true  },
+      { label:'⚙️ Inhab. administrativa',                            color:'#6b7280', bg:'#f9fafb', total: totales.iAdmin,             lista: listas.iAdmin,             conSancion:false },
+      { label:'📅 Mes actual pago · meses anteriores pendientes',    color:'#0ea5e9', bg:'#f0f9ff', total: totales.mesOkDeudaAnterior, lista: listas.mesOkDeudaAnterior, conSancion:false },
+      { label:'📋 Mes actual pago · estudios no aprobados',          color:'#f97316', bg:'#fff7ed', total: totales.mesOkSinEstudio,    lista: listas.mesOkSinEstudio,    conSancion:false },
     ];
+
+    // Panel de excepciones activas
+    const excepcionesHTML = excepciones.length ? `
+      <div style="margin-top:16px;border:1.5px solid #16a34a44;border-radius:10px;overflow:hidden">
+        <details open>
+          <summary style="background:#dcfce7;padding:12px 16px;cursor:pointer;font-weight:700;font-size:0.88rem;color:#15803d;display:flex;align-items:center;justify-content:space-between;list-style:none">
+            <span>✅ Excepciones de habilitación activas</span>
+            <span style="background:#16a34a;color:white;border-radius:20px;padding:2px 10px;font-size:0.82rem">${excepciones.length}</span>
+          </summary>
+          <div style="padding:14px 16px;background:white">
+            <div style="font-size:0.78rem;color:var(--gris3);margin-bottom:10px;font-style:italic">Estos jugadores están habilitados manualmente en este equipo, aunque tengan sanción activa en otra categoría.</div>
+            ${excepciones.map(e => `
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border-left:3px solid #16a34a;background:#f0fdf4;margin-bottom:6px;border-radius:0 6px 6px 0">
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:0.88rem;font-weight:700">${e.nombre}</div>
+                  <div style="font-size:0.75rem;color:var(--gris3)">${e.equipo}${e.motivo ? ' · ' + e.motivo : ''}${e.fecha ? ' · creada ' + e.fecha : ''}</div>
+                </div>
+                <button onclick="eliminarExcepcion('${e.jugadorId}',${JSON.stringify(e.nombre).replace(/"/g,'&quot;')},${JSON.stringify(e.equipo).replace(/"/g,'&quot;')})" style="font-size:0.72rem;padding:4px 10px;border-radius:6px;background:#fee2e2;color:#b91c1c;border:1px solid #ef4444;cursor:pointer;font-weight:700;white-space:nowrap">✕ Quitar</button>
+              </div>`).join('')}
+          </div>
+        </details>
+      </div>` : '';
 
     placeholder.innerHTML = `
       <div class="card">
@@ -2441,20 +2480,61 @@ async function renderPanelHabilitacionesAdmin() {
 
         <div style="display:flex;flex-direction:column;gap:12px">
           ${secciones.filter(s => s.total > 0).map(s => `
-            <details style="border:1.5px solid ${s.color}44;border-radius:10px;overflow:hidden">
+            <details style="border:1.5px solid ${s.color}44;border-radius:10px;overflow:hidden"${s.conSancion ? ' open' : ''}>
               <summary style="background:${s.bg};padding:12px 16px;cursor:pointer;font-weight:700;font-size:0.88rem;color:${s.color};display:flex;align-items:center;justify-content:space-between;list-style:none">
-                <span>${s.label}</span>
+                <span>${s.label}${s.conSancion ? ' <span style="font-size:0.7rem;color:#15803d;background:#dcfce7;padding:1px 7px;border-radius:8px;margin-left:6px">para IC: clic en ✓ para habilitar solo en este equipo</span>' : ''}</span>
                 <span style="background:${s.color};color:white;border-radius:20px;padding:2px 10px;font-size:0.82rem">${s.total}</span>
               </summary>
               <div style="padding:14px 16px;background:white">
-                ${renderLista(s.lista, s.color)}
+                ${renderLista(s.lista, s.color, s.conSancion)}
               </div>
             </details>`).join('')}
         </div>
+
+        ${excepcionesHTML}
       </div>`;
   } catch(e) {
     placeholder.remove();
     console.warn('Panel hab global error:', e);
+  }
+}
+
+// Crea una excepción de habilitación para un jugador IC en un equipo específico.
+// Permite que el jugador esté habilitado en ese equipo aunque tenga sanción
+// activa en otro equipo (otra categoría).
+async function habilitarExcepcion(jugadorId, equipoId, nombre, equipo) {
+  const motivo = prompt(`Crear excepción de habilitación para:\n\n${nombre}\nEquipo: ${equipo}\n\nMotivo (opcional, ej: "Vuelve antes a esta categoría"):`, '');
+  if (motivo === null) return; // canceló
+  try {
+    const r = await api('setExcepcionHab', { jugadorId, equipoId, motivo: motivo || '' });
+    if (r.ok) {
+      showToast(r.msg || 'Excepción creada', 'success');
+      // Refrescar el panel
+      const panel = document.getElementById('panel-hab-global');
+      if (panel) panel.remove();
+      renderPanelHabilitacionesAdmin();
+    } else {
+      showToast(r.msg || 'Error al crear excepción', 'error');
+    }
+  } catch(err) {
+    showToast('Error: ' + err.message, 'error');
+  }
+}
+
+async function eliminarExcepcion(jugadorId, nombre, equipo) {
+  if (!confirm(`¿Eliminar la excepción de habilitación de ${nombre} en ${equipo}?\n\nEl jugador volverá a quedar inhabilitado por sanción si la sanción sigue vigente.`)) return;
+  try {
+    const r = await api('removeExcepcionHab', { jugadorId });
+    if (r.ok) {
+      showToast(r.msg || 'Excepción eliminada', 'success');
+      const panel = document.getElementById('panel-hab-global');
+      if (panel) panel.remove();
+      renderPanelHabilitacionesAdmin();
+    } else {
+      showToast(r.msg || 'Error al eliminar', 'error');
+    }
+  } catch(err) {
+    showToast('Error: ' + err.message, 'error');
   }
 }
 
