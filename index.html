@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- PAGOS CDP — Frontend v5.57 — 2026-05-05 14:55 ARG (+ meta tags Open Graph + Twitter Card + favicons PWA actualizados para dominio pagos.cdpcdelu.ar) -->
+<!-- PAGOS CDP — Frontend v5.59 — 2026-05-05 15:50 ARG (+ indicador flotante OCR persistente entre pestañas) -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -518,6 +518,8 @@
     animation: spin 0.8s linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes slideInRight { from { transform: translateX(110%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  @keyframes slideOutRight { from { transform: translateX(0); opacity: 1; } to { transform: translateX(110%); opacity: 0; } }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
   .empty { text-align: center; padding: 48px; color: var(--gris2); font-size: 0.9rem; }
   .empty-icon { font-size: 2.5rem; margin-bottom: 10px; }
@@ -1937,7 +1939,10 @@ function renderFilaDelegado(i, jugador, comp, mes, labelMas, allComp) {
   let accionHtml = `<button class="btn-sm btn-cargar" onclick="abrirModalCargar(${jugador.id},'${jugador.nombre.replace(/'/g,"\\'")}','${mes}',null,null)">📤 Cargar</button>`;
 
   if (comp) {
-    if (comp.estado === 'Aprobado') {
+    if (comp.estado === 'Subiendo...') {
+      estadoHtml = `<span class="estado-badge" style="background:#dbeafe;color:#1e40af;border:1px solid #93c5fd"><span style="display:inline-block;width:10px;height:10px;border:2px solid #1e40af;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;margin-right:5px;vertical-align:middle"></span>Subiendo...</span>`;
+      accionHtml = `<span style="color:#64748b;font-size:0.8rem">⏳ En progreso</span>`;
+    } else if (comp.estado === 'Aprobado') {
       estadoHtml = `<span class="estado-badge estado-aprobado">✅ Aprobado</span>`;
       accionHtml = `<button class="btn-sm btn-ver" onclick="abrirModalVer('${comp.id}')">👁 Ver</button>`;
     } else if (comp.estado === 'Rechazado') {
@@ -3636,65 +3641,147 @@ async function confirmarCarga() {
     showToast('Seleccioná un archivo primero', 'error'); return;
   }
 
-  const btn = document.getElementById('btn-confirmar-carga');
-  btn.disabled = true; btn.textContent = 'Subiendo...';
+  // Capturar todos los datos ANTES de cerrar el modal
+  const archivo = APP.archivoSeleccionado;
+  const obs = document.getElementById('mc-obs').value;
+  const mes = document.getElementById('mc-mes').textContent;
+  const equipoId = APP.equipo.id;
+  const jugadorId = APP.modalJugadorId;
+  const jugadorNombre = APP.modalJugadorNombre;
+  const reemplazaId = APP.modalComprobanteId || '';
+  const apellido = jugadorNombre.split(' ')[0];
 
+  // Cerrar el modal INMEDIATAMENTE
+  cerrarModal('modal-cargar');
+  
+  // Mostrar toast persistente "Subiendo..."
+  const toastId = 'upload_' + Date.now();
+  showUploadToast(toastId, `Subiendo comprobante de ${apellido}...`, 'progress');
+  
+  // Agregar comprobante temporal a la UI inmediatamente para feedback visual
+  const tempId = 'temp_' + Date.now();
+  APP.comprobantes.push({
+    id: tempId,
+    equipoId: equipoId,
+    jugadorId: jugadorId,
+    jugadorNombre: jugadorNombre,
+    mes: mes,
+    estado: 'Subiendo...',
+    fecha: new Date().toISOString(),
+    obsAdmin: '',
+    obsUsuario: obs,
+    _temporal: true
+  });
+  renderMisComprobantes(document.getElementById('main-content'));
+  
+  // Subir en background sin bloquear la UI
   try {
-    // Convertir archivo a base64
-    const base64 = await fileToBase64(APP.archivoSeleccionado);
-    const obs = document.getElementById('mc-obs').value;
-    const mes = document.getElementById('mc-mes').textContent;
+    const base64 = await fileToBase64(archivo);
 
     const data = await apiPost('cargarComprobante', {
-      equipoId:    APP.equipo.id,
-      jugadorId:   APP.modalJugadorId,
-      jugadorNombre: APP.modalJugadorNombre,
-      mes,
+      equipoId, jugadorId, jugadorNombre, mes,
       archivo:     base64,
-      nombreArchivo: APP.archivoSeleccionado.name,
-      tipoArchivo: APP.archivoSeleccionado.type,
+      nombreArchivo: archivo.name,
+      tipoArchivo: archivo.type,
       obsUsuario:  obs,
-      reemplazaId: APP.modalComprobanteId || ''
+      reemplazaId
     });
 
     if (data.ok) {
-      cerrarModal('modal-cargar');
-      showToast('¡Comprobante cargado correctamente!', 'success');
+      // Quitar el comprobante temporal
+      const tempIdx = APP.comprobantes.findIndex(c => c.id === tempId);
+      if (tempIdx >= 0) APP.comprobantes.splice(tempIdx, 1);
       
       // Invalidar caché para que se recarguen los datos frescos
-      CACHE.invalidateEquipo(APP.equipo.id);
+      CACHE.invalidateEquipo(equipoId);
       
-      // Actualizar comprobantes localmente sin recargar todo
+      // Actualizar comprobantes localmente
       if (data.comprobante) {
-        // Si reemplazó uno existente, marcarlo
-        if (APP.modalComprobanteId) {
-          const idx = APP.comprobantes.findIndex(c => c.id === APP.modalComprobanteId);
+        if (reemplazaId) {
+          const idx = APP.comprobantes.findIndex(c => c.id === reemplazaId);
           if (idx >= 0) APP.comprobantes[idx].estado = 'Reemplazado';
         }
         APP.comprobantes.push(data.comprobante);
       } else {
-        // Fallback: agregar un comprobante sintético
         APP.comprobantes.push({
           id: 'temp_' + Date.now(),
-          equipoId: APP.equipo.id,
-          jugadorId: APP.modalJugadorId,
-          jugadorNombre: APP.modalJugadorNombre,
-          mes: document.getElementById('mc-mes').textContent,
+          equipoId, jugadorId, jugadorNombre, mes,
           estado: 'Pendiente',
           fecha: new Date().toISOString(),
           obsAdmin: '',
-          obsUsuario: document.getElementById('mc-obs').value
+          obsUsuario: obs
         });
       }
-      // Re-render solo la tabla sin volver a llamar al servidor
+      
+      // Actualizar toast a éxito
+      updateUploadToast(toastId, `${apellido} cargado ✓`, 'success');
+      
+      // Re-render
       renderMisComprobantes(document.getElementById('main-content'));
     } else {
       throw new Error(data.msg || 'Error al cargar');
     }
   } catch(e) {
-    showToast('Error: ' + e.message, 'error');
+    // Quitar el comprobante temporal en caso de error
+    const tempIdx = APP.comprobantes.findIndex(c => c.id === tempId);
+    if (tempIdx >= 0) APP.comprobantes.splice(tempIdx, 1);
+    renderMisComprobantes(document.getElementById('main-content'));
+    
+    updateUploadToast(toastId, `Error con ${apellido}: ${e.message}`, 'error');
   }
-  btn.disabled = false; btn.textContent = 'Cargar comprobante';
+}
+
+// ── Toast persistente para uploads en background ──────────────────────────
+function showUploadToast(id, msg, tipo) {
+  // Crear contenedor si no existe
+  let cont = document.getElementById('upload-toasts');
+  if (!cont) {
+    cont = document.createElement('div');
+    cont.id = 'upload-toasts';
+    cont.style.cssText = 'position:fixed;bottom:20px;right:20px;display:flex;flex-direction:column;gap:8px;z-index:10000;max-width:340px';
+    document.body.appendChild(cont);
+  }
+  
+  const toast = document.createElement('div');
+  toast.id = id;
+  toast.style.cssText = `
+    background: var(--blanco);
+    border-left: 4px solid ${tipo === 'progress' ? '#3b82f6' : tipo === 'success' ? '#16a34a' : '#dc2626'};
+    color: var(--texto);
+    padding: 12px 14px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    animation: slideInRight 0.25s ease;
+  `;
+  toast.innerHTML = `
+    <div class="upload-toast-icon" style="flex-shrink:0;width:18px;height:18px;display:flex;align-items:center;justify-content:center">
+      ${tipo === 'progress' ? '<div style="width:14px;height:14px;border:2px solid #3b82f6;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite"></div>' : tipo === 'success' ? '<span style="color:#16a34a;font-weight:700">✓</span>' : '<span style="color:#dc2626;font-weight:700">✕</span>'}
+    </div>
+    <div class="upload-toast-msg" style="flex:1">${msg}</div>
+  `;
+  cont.appendChild(toast);
+}
+
+function updateUploadToast(id, msg, tipo) {
+  const toast = document.getElementById(id);
+  if (!toast) return;
+  
+  toast.style.borderLeftColor = tipo === 'success' ? '#16a34a' : '#dc2626';
+  toast.querySelector('.upload-toast-icon').innerHTML = 
+    tipo === 'success' 
+      ? '<span style="color:#16a34a;font-weight:700;font-size:1.1rem">✓</span>' 
+      : '<span style="color:#dc2626;font-weight:700;font-size:1.1rem">✕</span>';
+  toast.querySelector('.upload-toast-msg').textContent = msg;
+  
+  // Auto-cerrar después de 4 segundos
+  setTimeout(() => {
+    toast.style.animation = 'slideOutRight 0.25s ease forwards';
+    setTimeout(() => toast.remove(), 250);
+  }, 4000);
 }
 
 async function aprobarComprobante(comprobanteId) {
@@ -8209,6 +8296,106 @@ async function rechazarSeleccionadosOCR() {
   showToast(`${rechazados} comprobantes rechazados`, 'success');
 }
 
+// ── Indicador flotante de OCR (visible incluso navegando entre pestañas) ──
+function crearIndicadorFlotanteOCR(total, forzar) {
+  // Si ya existe uno, lo quitamos primero
+  const existente = document.getElementById('ocr-floating');
+  if (existente) existente.remove();
+  
+  const div = document.createElement('div');
+  div.id = 'ocr-floating';
+  div.style.cssText = `
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+    color: #fff;
+    padding: 14px 18px;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(30,64,175,0.35);
+    z-index: 9999;
+    min-width: 280px;
+    max-width: 360px;
+    font-family: 'Sora', sans-serif;
+    animation: slideInRight 0.3s ease;
+  `;
+  div.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+      <div style="width:18px;height:18px;border:2.5px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.8s linear infinite"></div>
+      <strong style="font-size:0.9rem">🤖 ${forzar ? 'Reprocesando' : 'Procesando'} comprobantes</strong>
+    </div>
+    <div id="ocr-floating-progress" style="font-size:0.82rem;opacity:0.95;margin-bottom:6px">
+      0 / ${total}
+    </div>
+    <div style="background:rgba(255,255,255,0.25);height:6px;border-radius:3px;overflow:hidden;margin-bottom:6px">
+      <div id="ocr-floating-bar" style="background:#fff;height:100%;width:0%;transition:width 0.3s"></div>
+    </div>
+    <div id="ocr-floating-time" style="font-size:0.72rem;opacity:0.85"></div>
+  `;
+  document.body.appendChild(div);
+}
+
+function actualizarIndicadorFlotanteOCR(actual, total, segundosRestantes, jugadorActual) {
+  const div = document.getElementById('ocr-floating');
+  if (!div) return;
+  
+  const progress = document.getElementById('ocr-floating-progress');
+  const bar = document.getElementById('ocr-floating-bar');
+  const timeEl = document.getElementById('ocr-floating-time');
+  
+  const pct = (actual / total) * 100;
+  
+  if (progress) progress.innerHTML = `<strong>${actual} / ${total}</strong> · ${jugadorActual ? jugadorActual.split(' ')[0] : ''}`;
+  if (bar) bar.style.width = pct + '%';
+  
+  if (timeEl) {
+    if (segundosRestantes < 1) {
+      timeEl.textContent = 'Casi listo...';
+    } else if (segundosRestantes < 60) {
+      timeEl.textContent = `⏱ ~${Math.round(segundosRestantes)}s restantes`;
+    } else {
+      const min = Math.floor(segundosRestantes / 60);
+      const seg = Math.round(segundosRestantes % 60);
+      timeEl.textContent = `⏱ ~${min}m ${seg}s restantes`;
+    }
+  }
+}
+
+function cerrarIndicadorFlotanteOCR(procesados, errores) {
+  const div = document.getElementById('ocr-floating');
+  if (!div) return;
+  
+  // Cambiar a estado "completado"
+  const tieneErrores = errores > 0;
+  div.style.background = tieneErrores 
+    ? 'linear-gradient(135deg, #b91c1c 0%, #dc2626 100%)' 
+    : 'linear-gradient(135deg, #15803d 0%, #16a34a 100%)';
+  div.style.boxShadow = tieneErrores 
+    ? '0 8px 24px rgba(185,28,28,0.35)' 
+    : '0 8px 24px rgba(21,128,61,0.35)';
+  div.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+      <span style="font-size:1.3rem">${tieneErrores ? '⚠️' : '✅'}</span>
+      <strong style="font-size:0.95rem">${tieneErrores ? 'Procesado con errores' : 'Procesamiento completado'}</strong>
+    </div>
+    <div style="font-size:0.82rem;opacity:0.95">
+      ${procesados} OK${errores > 0 ? ` · ${errores} con error` : ''}
+    </div>
+    <button onclick="document.getElementById('ocr-floating').remove()" style="position:absolute;top:8px;right:8px;background:rgba(255,255,255,0.2);border:none;color:#fff;width:22px;height:22px;border-radius:50%;cursor:pointer;font-size:0.85rem;line-height:1">✕</button>
+  `;
+  
+  // Auto-cerrar después de 8 segundos si no hay errores
+  if (!tieneErrores) {
+    setTimeout(() => {
+      const stillThere = document.getElementById('ocr-floating');
+      if (stillThere) {
+        stillThere.style.animation = 'slideOutRight 0.3s ease forwards';
+        setTimeout(() => stillThere.remove(), 300);
+      }
+    }, 8000);
+  }
+}
+
 async function procesarOCRMasivo(forzar = false) {
   let comprobantes = window._ocrComprobantes || [];
   
@@ -8229,7 +8416,7 @@ async function procesarOCRMasivo(forzar = false) {
   }
 
   const progresoDiv = document.getElementById('ocr-progreso');
-  progresoDiv.style.display = 'block';
+  if (progresoDiv) progresoDiv.style.display = 'block';
 
   const resultados = [];
   let procesados = 0;
@@ -8237,19 +8424,56 @@ async function procesarOCRMasivo(forzar = false) {
 
   const erroresDetalle = [];
 
+  // Tracking de tiempo para estimar
+  const tInicio = Date.now();
+  const SEGUNDOS_POR_COMP_INICIAL = 10; // estimación inicial
+  const tiemposPorComp = []; // historial real para promediar
+
+  function formatTiempoRestante(segundos) {
+    if (segundos < 60) return `${Math.round(segundos)} s`;
+    const min = Math.floor(segundos / 60);
+    const seg = Math.round(segundos % 60);
+    return `${min}m ${seg}s`;
+  }
+
+  // Crear indicador flotante persistente (visible incluso navegando entre pestañas)
+  crearIndicadorFlotanteOCR(comprobantes.length, forzar);
+
   for (const c of comprobantes) {
-    progresoDiv.innerHTML = `
-      <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:12px;">
-        <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
-          <span>${forzar ? 'Reprocesando' : 'Procesando'} OCR...</span>
-          <span>${procesados + 1} / ${comprobantes.length}</span>
+    const tStart = Date.now();
+    
+    // Estimar tiempo restante
+    const restantes = comprobantes.length - procesados;
+    const promedio = tiemposPorComp.length > 0 
+      ? tiemposPorComp.reduce((a,b)=>a+b,0) / tiemposPorComp.length 
+      : SEGUNDOS_POR_COMP_INICIAL;
+    const tiempoEstimadoRestante = (restantes - 1) * promedio;
+    const tiempoTranscurrido = (Date.now() - tInicio) / 1000;
+
+    // Actualizar div en pestaña (si está visible)
+    if (progresoDiv) {
+      progresoDiv.innerHTML = `
+        <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:14px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <span style="font-weight:700;color:#1e40af">🤖 ${forzar ? 'Reprocesando' : 'Procesando'} OCR...</span>
+            <span style="font-weight:700;color:#1e40af">${procesados + 1} / ${comprobantes.length}</span>
+          </div>
+          <div style="background:#e0e7ff;height:10px;border-radius:5px;overflow:hidden;margin-bottom:10px;">
+            <div style="background:linear-gradient(90deg,#3b82f6,#1e40af);height:100%;width:${((procesados + 1) / comprobantes.length) * 100}%;transition:width 0.3s;"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:0.78rem;color:var(--gris3);">
+            <div>📄 <strong>${c.jugador}</strong> · ${c.mes}</div>
+            <div>⏱ Restante: <strong>${formatTiempoRestante(tiempoEstimadoRestante)}</strong></div>
+          </div>
+          <div style="font-size:0.7rem;color:var(--gris2);margin-top:4px;">
+            Transcurrido: ${formatTiempoRestante(tiempoTranscurrido)} · Promedio: ${promedio.toFixed(1)}s/comp · Podés seguir trabajando, esto sigue corriendo
+          </div>
         </div>
-        <div style="background:#e0e7ff;height:8px;border-radius:4px;overflow:hidden;">
-          <div style="background:#3b82f6;height:100%;width:${((procesados + 1) / comprobantes.length) * 100}%;transition:width 0.3s;"></div>
-        </div>
-        <div style="font-size:0.8rem;color:var(--gris3);margin-top:6px;">${c.jugador} - ${c.mes}</div>
-      </div>
-    `;
+      `;
+    }
+
+    // Actualizar indicador flotante persistente
+    actualizarIndicadorFlotanteOCR(procesados + 1, comprobantes.length, tiempoEstimadoRestante, c.jugador);
 
     try {
       const res = await api('procesarOCRComprobante', {
@@ -8283,9 +8507,19 @@ async function procesarOCRMasivo(forzar = false) {
       erroresDetalle.push({ jugador: c.jugador, equipo: c.equipo, mes: c.mes, error: e.message });
     }
 
+    // Registrar tiempo real de este comp
+    const tDelta = (Date.now() - tStart) / 1000;
+    tiemposPorComp.push(tDelta);
+    
+    // Mantener solo los últimos 5 para que el promedio sea reciente
+    if (tiemposPorComp.length > 5) tiemposPorComp.shift();
+
     // Pequeña pausa para no saturar
     await new Promise(r => setTimeout(r, 500));
   }
+
+  // Cerrar indicador flotante con resumen
+  cerrarIndicadorFlotanteOCR(procesados, errores);
 
   // Mostrar resultados
   let resumenHtml = `
@@ -8307,14 +8541,16 @@ async function procesarOCRMasivo(forzar = false) {
     `;
   }
 
-  progresoDiv.innerHTML = resumenHtml;
+  if (progresoDiv) progresoDiv.innerHTML = resumenHtml;
 
   // Mostrar tabla con resultados
   window._ocrResultados = resultados;
   renderListaOCR(resultados, 'ocr-lista', true);
 
-  btn.disabled = false;
-  btn.textContent = '🔍 Procesar OCR';
+  if (btn) {
+    btn.disabled = false;
+    btn.textContent = '🔍 Procesar OCR';
+  }
 }
 
 async function renderOCRRecaudacion() {
