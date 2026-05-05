@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- PAGOS CDP — Frontend v5.50 — 2026-05-04 16:45 ARG (+ botón WhatsApp estado del plantel para delegado) -->
+<!-- PAGOS CDP — Frontend v5.51 — 2026-05-04 16:55 ARG (+ WA usa wa.me para abrir app instalada en lugar de web) -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -3995,7 +3995,8 @@ function enviarEstadoWA() {
 
   // Mostrar modal preview antes de abrir WA
   const telefono = APP.equipo.telefono || '';
-  const waUrl = 'https://web.whatsapp.com/send?' + (telefono ? 'phone=' + telefono + '&' : '') + 'text=' + encodeURIComponent(msg);
+  // wa.me es deep link universal: abre la app instalada (móvil/desktop) y cae a Web si no la tenés
+  const waUrl = 'https://wa.me/' + telefono + '?text=' + encodeURIComponent(msg);
 
   // Crear modal de preview
   let modalEl = document.getElementById('modal-wa-preview');
