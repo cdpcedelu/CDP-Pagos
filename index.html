@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- PAGOS CDP — Frontend v5.52 — 2026-05-04 17:25 ARG (+ mobile: tabla cargar como cards reordenadas + habilitaciones solo 3 últimos meses) -->
+<!-- PAGOS CDP — Frontend v5.53 — 2026-05-04 17:45 ARG (+ mobile: items en fila + habilitaciones solo 2 meses) -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -520,13 +520,14 @@
     .filtros { gap: 8px; }
     th, td { padding: 8px 10px; }
 
-    /* ── Cargar Comprobantes en mobile: filas como cards reordenadas ── */
+    /* ── Cargar Comprobantes en mobile: items en fila horizontal ── */
     .tabla-cargar-comprobantes { display: block; width: 100%; }
     .tabla-cargar-comprobantes thead { display: none; }
     .tabla-cargar-comprobantes tbody { display: block; }
     .tabla-cargar-comprobantes tr {
-      display: flex; flex-direction: column; gap: 6px;
-      padding: 12px 14px; margin-bottom: 10px;
+      display: flex; flex-direction: row; align-items: center;
+      flex-wrap: wrap; gap: 8px;
+      padding: 10px 12px; margin-bottom: 8px;
       background: var(--blanco);
       border: 1px solid var(--gris1); border-radius: 12px;
       box-shadow: 0 1px 3px rgba(0,0,0,0.05);
@@ -534,14 +535,33 @@
     .tabla-cargar-comprobantes td {
       display: block; padding: 0; border: none;
     }
-    /* Orden: Jugador → Acción → Estado → Observación. # se oculta */
+    /* Orden: Jugador (flex grow) → Acciones → Estado → Observación. # se oculta */
     .tabla-cargar-comprobantes td:nth-child(1) { display: none; }
-    .tabla-cargar-comprobantes td:nth-child(2) { order: 1; }   /* Jugador */
-    .tabla-cargar-comprobantes td:nth-child(5) { order: 2; padding-top: 4px; }   /* Acciones */
-    .tabla-cargar-comprobantes td:nth-child(3) { order: 3; }   /* Estado */
-    .tabla-cargar-comprobantes td:nth-child(4) { order: 4; font-size: 0.85rem; }   /* Observación */
+    .tabla-cargar-comprobantes td:nth-child(2) {
+      order: 1; flex: 1 1 auto; min-width: 0;
+    }
+    .tabla-cargar-comprobantes td:nth-child(5) {
+      order: 2; flex: 0 0 auto;
+    }
+    .tabla-cargar-comprobantes td:nth-child(3) {
+      order: 3; flex: 0 0 auto;
+    }
+    .tabla-cargar-comprobantes td:nth-child(4) {
+      order: 4; flex: 1 1 100%;
+      font-size: 0.82rem;
+      padding-top: 4px;
+      border-top: 1px dashed var(--gris1);
+      margin-top: 2px;
+    }
     .tabla-cargar-comprobantes td:nth-child(4):has(.obs-vacia) { display: none; }
     .tabla-cargar-comprobantes .obs-tag { max-width: none !important; }
+    /* Compactar el botón en mobile */
+    .tabla-cargar-comprobantes .btn-sm {
+      padding: 5px 10px; font-size: 0.75rem;
+    }
+    .tabla-cargar-comprobantes .btn-actions {
+      display: flex; flex-direction: column; gap: 4px;
+    }
 
     /* ── Habilitaciones en mobile: ocultar meses no recientes ── */
     .mes-ocultable-mobile { display: none !important; }
@@ -3927,8 +3947,8 @@ function renderHabilitacionesUI(cnt, data) {
                 // Detalle de pagos por mes
                 let pagosHtml = '';
                 if (j.pagos && mesesMostrar) {
-                  // En mobile mostrar solo los 3 últimos (actual + 2 anteriores). Los previos llevan clase mes-ocultable-mobile
-                  const idxLimite = Math.max(0, mesesMostrar.length - 3);
+                  // En mobile mostrar solo los 2 últimos (actual + anterior). Los previos llevan clase mes-ocultable-mobile
+                  const idxLimite = Math.max(0, mesesMostrar.length - 2);
                   pagosHtml = '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">' +
                     mesesMostrar.map((m, mIdx) => {
                       const estPago = j.pagos[m] || 'Sin cargar';
