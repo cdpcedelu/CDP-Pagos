@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- PAGOS CDP — Frontend v5.53 — 2026-05-04 17:45 ARG (+ mobile: items en fila + habilitaciones solo 2 meses) -->
+<!-- PAGOS CDP — Frontend v5.55 — 2026-05-05 12:10 ARG (+ botón WA con estética mejorada: gradiente verde sólido, ícono fiel, hover) -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -511,6 +511,17 @@
   .toast.success { background: #f0fdf4; color: #15803d; border: 1px solid #86efac; }
   .toast.error   { background: #fef2f2; color: #b91c1c; border: 1px solid #fca5a5; }
   .toast.info    { background: #eff6ff; color: var(--azul2); border: 1px solid #bfdbfe; }
+
+  /* Botón "Enviarme estado" — verde WhatsApp */
+  .btn-wa-enviar:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(37,211,102,0.55);
+    filter: brightness(1.05);
+  }
+  .btn-wa-enviar:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 3px rgba(37,211,102,0.35);
+  }
 
   /* Responsive */
   @media (max-width: 640px) {
@@ -3896,10 +3907,10 @@ function renderHabilitacionesUI(cnt, data) {
       <div class="equipo-header">
         <div>
           <div class="equipo-nombre">${APP.equipo.nombre} — Estado del plantel</div>
-          <div class="equipo-cat" style="display:flex;align-items:center;flex-wrap:wrap;gap:8px">
+          <div class="equipo-cat" style="display:flex;align-items:center;flex-wrap:wrap;gap:10px">
             <span>Ref. mes: <strong>${mesActual}</strong></span>
-            <button onclick="enviarEstadoWA()" title="Enviarme el estado del equipo por WhatsApp" style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:14px;border:1px solid #16a34a;background:#dcfce7;color:#15803d;font-family:'Sora',sans-serif;font-size:0.75rem;font-weight:700;cursor:pointer;line-height:1">
-              <svg width="13" height="13" viewBox="0 0 32 32" fill="#16a34a"><path d="M16 2C8.268 2 2 8.268 2 16c0 2.492.669 4.83 1.836 6.845L2 30l7.363-1.81A13.94 13.94 0 0016 30c7.732 0 14-6.268 14-14S23.732 2 16 2zm6.29 19.082c-.345-.172-2.04-1.006-2.356-1.12-.316-.115-.546-.172-.776.172s-.89 1.12-1.09 1.35c-.2.23-.4.258-.745.086-.345-.172-1.456-.537-2.773-1.71-1.025-.913-1.716-2.04-1.917-2.385-.2-.345-.021-.53.15-.702.155-.154.345-.4.517-.6.172-.2.23-.344.345-.574.115-.23.057-.43-.029-.602-.086-.172-.776-1.87-1.063-2.562-.28-.672-.565-.58-.776-.59l-.661-.011c-.23 0-.602.086-.917.43s-1.205 1.178-1.205 2.873 1.234 3.332 1.406 3.562c.172.23 2.428 3.707 5.882 5.196.823.355 1.464.567 1.965.726.826.263 1.578.226 2.172.137.663-.099 2.04-.834 2.328-1.638.287-.804.287-1.493.2-1.638-.086-.144-.316-.23-.661-.402z"/></svg>
+            <button onclick="enviarEstadoWA()" title="Enviarme el estado del equipo por WhatsApp" class="btn-wa-enviar" style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px 5px 10px;border-radius:999px;border:none;background:linear-gradient(135deg,#25D366 0%,#128C7E 100%);color:#fff;font-family:'Sora',sans-serif;font-size:0.78rem;font-weight:700;cursor:pointer;line-height:1;box-shadow:0 2px 6px rgba(37,211,102,0.4);transition:all 0.18s ease;letter-spacing:0.2px">
+              <svg width="15" height="15" viewBox="0 0 32 32" fill="#fff" style="flex-shrink:0"><path d="M19.11 17.205c-.372 0-1.088 1.39-1.518 1.39a.63.63 0 0 1-.315-.1c-.802-.402-1.504-.817-2.163-1.447-.545-.516-1.146-1.29-1.46-1.963a.426.426 0 0 1-.073-.215c0-.33.99-.945.99-1.49 0-.143-.73-2.09-.832-2.335-.143-.372-.214-.487-.6-.487-.187 0-.36-.043-.53-.043-.302 0-.53.115-.746.315-.688.645-1.032 1.318-1.06 2.264v.114c-.015.99.472 1.977 1.017 2.78 1.23 1.82 2.506 3.41 4.554 4.34.616.287 2.035.888 2.722.888.817 0 2.15-.515 2.478-1.318.158-.387.158-.732.115-1.117-.07-.5-1.946-1.18-2.578-1.477zM16.005 0a16 16 0 0 0-13.49 24.564L0 32l7.6-2.494A16 16 0 1 0 16.005 0zm0 29.013a12.953 12.953 0 0 1-7.245-2.207l-5.06 1.66 1.65-4.945a13 13 0 1 1 10.65 5.49z"/></svg>
               Enviarme estado
             </button>
             ${!mesEnCursoExigido ? `<span style="color:#059669;font-size:0.82rem">· En plazo de gracia hasta el 10 del mes</span>` : `<span style="color:#dc2626;font-size:0.82rem">· Pago del mes exigido (día ${diaHoy})</span>`}
@@ -4017,28 +4028,28 @@ function enviarEstadoWA() {
   const mayoresHab = habilitados.filter(j => j.mas35);
 
   let msg = '';
-  msg += `📋 *Estado del equipo — ${equipo}*\n`;
-  msg += `📅 Mes de referencia: *${mesActual}*\n`;
+  msg += `*Estado del equipo — ${equipo}*\n`;
+  msg += `Mes de referencia: *${mesActual}*\n`;
   msg += `━━━━━━━━━━━━━━━━━━━━\n\n`;
-  msg += `✅ *Habilitados:* ${habilitados.length}\n`;
+  msg += `*Habilitados:* ${habilitados.length}\n`;
   if (mayoresHab.length > 0) {
-    msg += `   👴 *Mayores habilitados:* ${mayoresHab.length}\n`;
+    msg += `*Mayores habilitados:* ${mayoresHab.length}\n`;
   }
   if (iDeportiva.length > 0) {
-    msg += `🚫 *Inhabilitados deportivos:* ${iDeportiva.length}\n`;
-    iDeportiva.forEach(j => { msg += `   • ${j.nombre}\n`; });
+    msg += `*Inhabilitados deportivos:* ${iDeportiva.length}\n`;
+    iDeportiva.forEach(j => { msg += `- ${j.nombre}\n`; });
   }
   if (iMedica.length > 0) {
-    msg += `🏥 *Inhabilitados médicos:* ${iMedica.length}\n`;
+    msg += `*Inhabilitados médicos:* ${iMedica.length}\n`;
   }
   if (iAdmin.length > 0) {
-    msg += `💰 *Inhabilitados administrativos:* ${iAdmin.length}\n`;
+    msg += `*Inhabilitados administrativos:* ${iAdmin.length}\n`;
   }
   if (sinComp.length > 0) {
-    msg += `\n⚠️ *Sin comprobante de ${mesActual}:* ${sinComp.length}\n`;
-    sinComp.forEach(j => { msg += `   • ${j.nombre}\n`; });
+    msg += `\n*Sin comprobante de ${mesActual}:* ${sinComp.length}\n`;
+    sinComp.forEach(j => { msg += `- ${j.nombre}\n`; });
   } else {
-    msg += `\n✔️ *Todos los jugadores tienen comprobante cargado para ${mesActual}*\n`;
+    msg += `\n*Todos los jugadores tienen comprobante cargado para ${mesActual}*\n`;
   }
   msg += `\n_Enviado desde el sistema de Pagos CDP_`;
 
@@ -4071,10 +4082,10 @@ function enviarEstadoWA() {
       <div style="padding:16px 20px">
         ${telefono
           ? `<div style="margin-bottom:10px;padding:8px 12px;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;font-size:0.82rem;color:#166534">
-               📱 Se enviará a tu número: <strong>+${telefono}</strong>
+               Se enviará a tu número: <strong>+${telefono}</strong>
              </div>`
           : `<div style="margin-bottom:10px;padding:8px 12px;background:#fef9c3;border:1px solid #fde047;border-radius:8px;font-size:0.82rem;color:#854d0e">
-               ⚠️ No tenés teléfono configurado en tu equipo. Se abrirá WA Web para que elijas el destinatario.
+               No tenés teléfono configurado en tu equipo. Se abrirá WA Web para que elijas el destinatario.
              </div>`
         }
         <div style="background:#dcfce7;border-radius:12px;padding:14px 16px;font-size:0.82rem;line-height:1.6;color:#0f172a;max-height:320px;overflow-y:auto;font-family:'Sora',sans-serif;border:1px solid #bbf7d0">
