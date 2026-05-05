@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- PAGOS CDP — Frontend v5.51 — 2026-05-04 16:55 ARG (+ WA usa wa.me para abrir app instalada en lugar de web) -->
+<!-- PAGOS CDP — Frontend v5.52 — 2026-05-04 17:25 ARG (+ mobile: tabla cargar como cards reordenadas + habilitaciones solo 3 últimos meses) -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -519,6 +519,32 @@
     .equipo-stats { gap: 12px; }
     .filtros { gap: 8px; }
     th, td { padding: 8px 10px; }
+
+    /* ── Cargar Comprobantes en mobile: filas como cards reordenadas ── */
+    .tabla-cargar-comprobantes { display: block; width: 100%; }
+    .tabla-cargar-comprobantes thead { display: none; }
+    .tabla-cargar-comprobantes tbody { display: block; }
+    .tabla-cargar-comprobantes tr {
+      display: flex; flex-direction: column; gap: 6px;
+      padding: 12px 14px; margin-bottom: 10px;
+      background: var(--blanco);
+      border: 1px solid var(--gris1); border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .tabla-cargar-comprobantes td {
+      display: block; padding: 0; border: none;
+    }
+    /* Orden: Jugador → Acción → Estado → Observación. # se oculta */
+    .tabla-cargar-comprobantes td:nth-child(1) { display: none; }
+    .tabla-cargar-comprobantes td:nth-child(2) { order: 1; }   /* Jugador */
+    .tabla-cargar-comprobantes td:nth-child(5) { order: 2; padding-top: 4px; }   /* Acciones */
+    .tabla-cargar-comprobantes td:nth-child(3) { order: 3; }   /* Estado */
+    .tabla-cargar-comprobantes td:nth-child(4) { order: 4; font-size: 0.85rem; }   /* Observación */
+    .tabla-cargar-comprobantes td:nth-child(4):has(.obs-vacia) { display: none; }
+    .tabla-cargar-comprobantes .obs-tag { max-width: none !important; }
+
+    /* ── Habilitaciones en mobile: ocultar meses no recientes ── */
+    .mes-ocultable-mobile { display: none !important; }
   }
 
   /* Pagination */
@@ -1820,7 +1846,7 @@ function renderMisComprobantes(cnt) {
       </div>
       ${CONFIG.MESES.indexOf(mes) >= 1 ? `<div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;padding:6px 12px;margin-bottom:8px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;font-size:0.72rem;color:#64748b"><span style="font-weight:600;text-transform:uppercase;letter-spacing:0.04em">Meses anteriores:</span><span><span style="color:#22c55e">✓</span> Aprobado</span><span><span style="color:#eab308">⏳</span> Pendiente</span><span><span style="color:#ef4444">✗</span> Rechazado</span><span><span style="color:#9ca3af">○</span> Sin cargar</span></div>` : ""}
       <div class="tabla-wrapper">
-        <table>
+        <table class="tabla-cargar-comprobantes">
           <thead>
             <tr>
               <th>#</th>
@@ -1869,7 +1895,7 @@ function renderFilaDelegado(i, jugador, comp, mes, labelMas, allComp) {
 
   const obsHtml = comp?.obsAdmin
     ? `<span class="obs-tag" title="${comp.obsAdmin}" style="display:block;white-space:normal;word-break:break-word;max-width:160px;line-height:1.4">${comp.obsAdmin}</span>`
-    : '—';
+    : '<span class="obs-vacia">—</span>';
 
   const badges = [
     jugador.mas35 ? '<span class="badge-mas35">' + labelMas + '</span>' : '',
@@ -3901,14 +3927,17 @@ function renderHabilitacionesUI(cnt, data) {
                 // Detalle de pagos por mes
                 let pagosHtml = '';
                 if (j.pagos && mesesMostrar) {
+                  // En mobile mostrar solo los 3 últimos (actual + 2 anteriores). Los previos llevan clase mes-ocultable-mobile
+                  const idxLimite = Math.max(0, mesesMostrar.length - 3);
                   pagosHtml = '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">' +
-                    mesesMostrar.map(m => {
+                    mesesMostrar.map((m, mIdx) => {
                       const estPago = j.pagos[m] || 'Sin cargar';
                       const pi = pagoIconos[estPago] || pagoIconos['Sin cargar'];
                       const esActual = m === mesActual;
                       const esExigido = mesesRequeridos && mesesRequeridos.indexOf(m) >= 0;
                       const borde = esActual ? 'border:2px solid #3b82f6' : esExigido ? 'border:1.5px solid #d1d5db' : 'border:1px dashed #e2e8f0';
-                      return '<div title="' + m + ': ' + estPago + '" style="display:flex;flex-direction:column;align-items:center;padding:4px 8px;border-radius:8px;background:' + pi.bg + ';' + borde + ';min-width:48px">' +
+                      const claseOcultable = mIdx < idxLimite ? ' mes-ocultable-mobile' : '';
+                      return '<div title="' + m + ': ' + estPago + '" class="mes-cuadradito' + claseOcultable + '" style="display:flex;flex-direction:column;align-items:center;padding:4px 8px;border-radius:8px;background:' + pi.bg + ';' + borde + ';min-width:48px">' +
                         '<span style="font-size:1.15rem;line-height:1.2">' + pi.emoji + '</span>' +
                         '<span style="font-size:0.68rem;font-weight:700;color:' + pi.color + ';margin-top:1px">' + mesCorto(m) + '</span>' +
                       '</div>';
