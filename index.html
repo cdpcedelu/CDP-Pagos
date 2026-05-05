@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- PAGOS CDP — Frontend v5.55 — 2026-05-05 12:10 ARG (+ botón WA con estética mejorada: gradiente verde sólido, ícono fiel, hover) -->
+<!-- PAGOS CDP — Frontend v5.56 — 2026-05-05 13:00 ARG (+ botón WA con borde blanco fino y hover invertido a blanco con ícono que gira) -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -512,15 +512,25 @@
   .toast.error   { background: #fef2f2; color: #b91c1c; border: 1px solid #fca5a5; }
   .toast.info    { background: #eff6ff; color: var(--azul2); border: 1px solid #bfdbfe; }
 
-  /* Botón "Enviarme estado" — verde WhatsApp */
+  /* Botón "Enviarme estado" — verde WhatsApp con hover invertido a blanco */
+  .btn-wa-enviar {
+    background-image: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+  }
   .btn-wa-enviar:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(37,211,102,0.55);
-    filter: brightness(1.05);
+    background: #ffffff !important;
+    background-image: none !important;
+    color: #128C7E !important;
+    border-color: #128C7E !important;
+    transform: translateY(-2px) scale(1.03);
+    box-shadow: 0 6px 18px rgba(37,211,102,0.55), 0 0 0 3px rgba(37,211,102,0.15) !important;
+    letter-spacing: 0.5px !important;
+  }
+  .btn-wa-enviar:hover svg {
+    transform: rotate(-8deg) scale(1.1);
   }
   .btn-wa-enviar:active {
-    transform: translateY(0);
-    box-shadow: 0 1px 3px rgba(37,211,102,0.35);
+    transform: translateY(-1px) scale(1.01);
+    box-shadow: 0 2px 6px rgba(37,211,102,0.4) !important;
   }
 
   /* Responsive */
@@ -3909,8 +3919,8 @@ function renderHabilitacionesUI(cnt, data) {
           <div class="equipo-nombre">${APP.equipo.nombre} — Estado del plantel</div>
           <div class="equipo-cat" style="display:flex;align-items:center;flex-wrap:wrap;gap:10px">
             <span>Ref. mes: <strong>${mesActual}</strong></span>
-            <button onclick="enviarEstadoWA()" title="Enviarme el estado del equipo por WhatsApp" class="btn-wa-enviar" style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px 5px 10px;border-radius:999px;border:none;background:linear-gradient(135deg,#25D366 0%,#128C7E 100%);color:#fff;font-family:'Sora',sans-serif;font-size:0.78rem;font-weight:700;cursor:pointer;line-height:1;box-shadow:0 2px 6px rgba(37,211,102,0.4);transition:all 0.18s ease;letter-spacing:0.2px">
-              <svg width="15" height="15" viewBox="0 0 32 32" fill="#fff" style="flex-shrink:0"><path d="M19.11 17.205c-.372 0-1.088 1.39-1.518 1.39a.63.63 0 0 1-.315-.1c-.802-.402-1.504-.817-2.163-1.447-.545-.516-1.146-1.29-1.46-1.963a.426.426 0 0 1-.073-.215c0-.33.99-.945.99-1.49 0-.143-.73-2.09-.832-2.335-.143-.372-.214-.487-.6-.487-.187 0-.36-.043-.53-.043-.302 0-.53.115-.746.315-.688.645-1.032 1.318-1.06 2.264v.114c-.015.99.472 1.977 1.017 2.78 1.23 1.82 2.506 3.41 4.554 4.34.616.287 2.035.888 2.722.888.817 0 2.15-.515 2.478-1.318.158-.387.158-.732.115-1.117-.07-.5-1.946-1.18-2.578-1.477zM16.005 0a16 16 0 0 0-13.49 24.564L0 32l7.6-2.494A16 16 0 1 0 16.005 0zm0 29.013a12.953 12.953 0 0 1-7.245-2.207l-5.06 1.66 1.65-4.945a13 13 0 1 1 10.65 5.49z"/></svg>
+            <button onclick="enviarEstadoWA()" title="Enviarme el estado del equipo por WhatsApp" class="btn-wa-enviar" style="display:inline-flex;align-items:center;gap:7px;padding:6px 14px 6px 11px;border-radius:999px;border:1.5px solid rgba(255,255,255,0.5);background:linear-gradient(135deg,#25D366 0%,#128C7E 100%);color:#fff;font-family:'Sora',sans-serif;font-size:0.78rem;font-weight:700;cursor:pointer;line-height:1;box-shadow:0 2px 8px rgba(37,211,102,0.45),inset 0 1px 0 rgba(255,255,255,0.2);transition:all 0.22s cubic-bezier(0.4,0,0.2,1);letter-spacing:0.3px">
+              <svg width="15" height="15" viewBox="0 0 32 32" fill="currentColor" style="flex-shrink:0;transition:transform 0.22s ease"><path d="M19.11 17.205c-.372 0-1.088 1.39-1.518 1.39a.63.63 0 0 1-.315-.1c-.802-.402-1.504-.817-2.163-1.447-.545-.516-1.146-1.29-1.46-1.963a.426.426 0 0 1-.073-.215c0-.33.99-.945.99-1.49 0-.143-.73-2.09-.832-2.335-.143-.372-.214-.487-.6-.487-.187 0-.36-.043-.53-.043-.302 0-.53.115-.746.315-.688.645-1.032 1.318-1.06 2.264v.114c-.015.99.472 1.977 1.017 2.78 1.23 1.82 2.506 3.41 4.554 4.34.616.287 2.035.888 2.722.888.817 0 2.15-.515 2.478-1.318.158-.387.158-.732.115-1.117-.07-.5-1.946-1.18-2.578-1.477zM16.005 0a16 16 0 0 0-13.49 24.564L0 32l7.6-2.494A16 16 0 1 0 16.005 0zm0 29.013a12.953 12.953 0 0 1-7.245-2.207l-5.06 1.66 1.65-4.945a13 13 0 1 1 10.65 5.49z"/></svg>
               Enviarme estado
             </button>
             ${!mesEnCursoExigido ? `<span style="color:#059669;font-size:0.82rem">· En plazo de gracia hasta el 10 del mes</span>` : `<span style="color:#dc2626;font-size:0.82rem">· Pago del mes exigido (día ${diaHoy})</span>`}
