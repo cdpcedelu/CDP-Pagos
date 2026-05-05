@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- PAGOS CDP — Frontend v5.49 — 2026-05-04 10:30 ARG (+ excepciones de habilitación por equipo para IC) -->
+<!-- PAGOS CDP — Frontend v5.50 — 2026-05-04 16:45 ARG (+ botón WhatsApp estado del plantel para delegado) -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -3850,9 +3850,13 @@ function renderHabilitacionesUI(cnt, data) {
       <div class="equipo-header">
         <div>
           <div class="equipo-nombre">${APP.equipo.nombre} — Estado del plantel</div>
-          <div class="equipo-cat">
-            Ref. mes: <strong>${mesActual}</strong>
-            ${!mesEnCursoExigido ? ` · <span style="color:#059669;font-size:0.82rem">En plazo de gracia hasta el 10 del mes</span>` : ` · <span style="color:#dc2626;font-size:0.82rem">Pago del mes exigido (día ${diaHoy})</span>`}
+          <div class="equipo-cat" style="display:flex;align-items:center;flex-wrap:wrap;gap:8px">
+            <span>Ref. mes: <strong>${mesActual}</strong></span>
+            <button onclick="enviarEstadoWA()" title="Enviarme el estado del equipo por WhatsApp" style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:14px;border:1px solid #16a34a;background:#dcfce7;color:#15803d;font-family:'Sora',sans-serif;font-size:0.75rem;font-weight:700;cursor:pointer;line-height:1">
+              <svg width="13" height="13" viewBox="0 0 32 32" fill="#16a34a"><path d="M16 2C8.268 2 2 8.268 2 16c0 2.492.669 4.83 1.836 6.845L2 30l7.363-1.81A13.94 13.94 0 0016 30c7.732 0 14-6.268 14-14S23.732 2 16 2zm6.29 19.082c-.345-.172-2.04-1.006-2.356-1.12-.316-.115-.546-.172-.776.172s-.89 1.12-1.09 1.35c-.2.23-.4.258-.745.086-.345-.172-1.456-.537-2.773-1.71-1.025-.913-1.716-2.04-1.917-2.385-.2-.345-.021-.53.15-.702.155-.154.345-.4.517-.6.172-.2.23-.344.345-.574.115-.23.057-.43-.029-.602-.086-.172-.776-1.87-1.063-2.562-.28-.672-.565-.58-.776-.59l-.661-.011c-.23 0-.602.086-.917.43s-1.205 1.178-1.205 2.873 1.234 3.332 1.406 3.562c.172.23 2.428 3.707 5.882 5.196.823.355 1.464.567 1.965.726.826.263 1.578.226 2.172.137.663-.099 2.04-.834 2.328-1.638.287-.804.287-1.493.2-1.638-.086-.144-.316-.23-.661-.402z"/></svg>
+              Enviarme estado
+            </button>
+            ${!mesEnCursoExigido ? `<span style="color:#059669;font-size:0.82rem">· En plazo de gracia hasta el 10 del mes</span>` : `<span style="color:#dc2626;font-size:0.82rem">· Pago del mes exigido (día ${diaHoy})</span>`}
           </div>
           <div class="equipo-stats">
             <div class="stat"><div class="stat-num" style="color:#86efac">${habilitados}</div><div class="stat-label">Habilitados</div></div>
