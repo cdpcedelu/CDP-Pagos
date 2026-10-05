@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- PAGOS CDP — Frontend v5.61 — 2026-08-19 21:55 ARG (+ precios dinámicos leídos del backend en tarjetas de recaudación) -->
+<!-- PAGOS CDP — Frontend v5.62 — 2026-10-05 ARG (+ modal alta jugador: tipo alta/reingreso/IC, Mayor de 50 en Senior, observaciones) -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -4316,12 +4316,47 @@ async function renderGestionJugadores(equipoFiltro = '') {
 
       <!-- Modal Alta Jugador -->
       <div class="modal-overlay" id="modal-alta-jug" style="display:none">
-        <div class="modal-card" style="max-width:480px">
+        <div class="modal-card" style="max-width:520px">
           <div class="modal-header">
             <span class="modal-title">➕ Alta de jugador</span>
             <button class="modal-close" onclick="cerrarModal('modal-alta-jug')">✕</button>
           </div>
           <div class="modal-body" style="padding:20px;display:flex;flex-direction:column;gap:14px">
+
+            <!-- TIPO DE ALTA — primero y obligatorio -->
+            <div class="form-group">
+              <label style="font-weight:700;font-size:0.9rem">Tipo de alta <span style="color:#dc2626">*</span></label>
+              <div style="display:flex;flex-direction:column;gap:8px;margin-top:6px">
+                <label id="alta-tipo-label-nuevo" style="display:flex;align-items:flex-start;gap:10px;padding:12px;border:2px solid #3b82f6;border-radius:8px;cursor:pointer;background:#eff6ff">
+                  <input type="radio" name="alta-tipo-alta" id="alta-tipo-nuevo" value="nuevo" checked onchange="onAltaTipoChange()" style="margin-top:2px;accent-color:#3b82f6">
+                  <div>
+                    <div style="font-weight:700;color:#1e40af">🆕 Alta Nueva — Nuevo Socio</div>
+                    <div style="font-size:0.8rem;color:#3b82f6;margin-top:2px">Primera vez en el club. Se requiere toda la documentación (DNI, ficha, estudios médicos).</div>
+                  </div>
+                </label>
+                <label id="alta-tipo-label-reingreso" style="display:flex;align-items:flex-start;gap:10px;padding:12px;border:2px solid var(--gris1);border-radius:8px;cursor:pointer">
+                  <input type="radio" name="alta-tipo-alta" id="alta-tipo-reingreso" value="reingreso" onchange="onAltaTipoChange()" style="margin-top:2px;accent-color:#3b82f6">
+                  <div>
+                    <div style="font-weight:700;color:#374151">🔄 Reingreso — Fue socio antes</div>
+                    <div style="font-size:0.8rem;color:#6b7280;margin-top:2px">Ya fue socio del club y vuelve. Verificar si la documentación sigue vigente.</div>
+                  </div>
+                </label>
+                <label id="alta-tipo-label-ic" style="display:flex;align-items:flex-start;gap:10px;padding:12px;border:2px solid var(--gris1);border-radius:8px;cursor:pointer">
+                  <input type="radio" name="alta-tipo-alta" id="alta-tipo-ic" value="ic" onchange="onAltaTipoChange()" style="margin-top:2px;accent-color:#7c3aed">
+                  <div>
+                    <div style="font-weight:700;color:#374151">🔀 Alta IC — Ya es socio (Intercategoría)</div>
+                    <div style="font-size:0.8rem;color:#6b7280;margin-top:2px">Ya pertenece a otro equipo del club. <strong>No se requiere nueva documentación</strong>, solo se agrega al equipo como IC.</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <!-- Aviso IC -->
+            <div id="alta-aviso-ic" style="display:none;background:#f5f3ff;border-left:4px solid #7c3aed;padding:12px 14px;border-radius:0 8px 8px 0;font-size:0.85rem;color:#5b21b6">
+              ⚠️ <strong>Alta IC:</strong> El jugador ya es socio del club. Solo completá nombre, DNI y equipo destino. No se le pedirá nueva ficha ni estudios médicos — se usa la documentación del equipo titular.
+            </div>
+
+            <!-- Equipo -->
             <div class="form-group">
               <label>Equipo</label>
               <select id="alta-equipo" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit">
@@ -4329,36 +4364,58 @@ async function renderGestionJugadores(equipoFiltro = '') {
                 ${opEq}
               </select>
             </div>
+
+            <!-- Nombre -->
             <div class="form-group">
               <label>Apellido y Nombres</label>
               <input id="alta-nombre" type="text" placeholder="GARCIA JUAN MARTIN" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit;text-transform:uppercase">
             </div>
-            <div style="display:flex;gap:12px">
-              <div class="form-group" style="flex:1">
-                <label>DNI</label>
-                <input id="alta-dni" type="text" placeholder="12345678" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit">
+
+            <!-- DNI + Fecha Nac — se ocultan en modo IC -->
+            <div id="alta-campos-doc">
+              <div style="display:flex;gap:12px">
+                <div class="form-group" style="flex:1">
+                  <label>DNI</label>
+                  <input id="alta-dni" type="text" placeholder="12345678" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit">
+                </div>
+                <div class="form-group" style="flex:1">
+                  <label>Fecha de Nacimiento</label>
+                  <input id="alta-fecha-nac" type="date" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit">
+                </div>
               </div>
-              <div class="form-group" style="flex:1">
-                <label>Fecha de Nacimiento</label>
-                <input id="alta-fecha-nac" type="date" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit">
+              <div class="form-group" style="margin-top:14px">
+                <label>Tipo de Socio</label>
+                <select id="alta-tipo-socio" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit">
+                  <option value="Activo">Activo</option>
+                  <option value="Pasivo">Pasivo (solo cuota social)</option>
+                  <option value="Colaborador">Colaborador</option>
+                </select>
+              </div>
+              <div style="display:flex;gap:16px;margin-top:10px">
+                <label style="display:flex;align-items:center;gap:6px;font-size:0.88rem;cursor:pointer">
+                  <input type="checkbox" id="alta-mas35"> <span id="alta-mas35-label">Mayor de 35</span>
+                </label>
               </div>
             </div>
+
+            <!-- DNI solo para IC (sin fecha nac ni tipo socio) -->
+            <div id="alta-campos-ic" style="display:none">
+              <div class="form-group">
+                <label>DNI <span style="font-size:0.8rem;color:#6b7280">(para verificar que ya es socio)</span></label>
+                <input id="alta-dni-ic" type="text" placeholder="12345678" style="width:100%;padding:10px;border:1.5px solid #7c3aed;border-radius:8px;font-family:inherit">
+              </div>
+              <div class="form-group" style="margin-top:10px">
+                <label>Equipo titular <span style="font-size:0.8rem;color:#6b7280">(donde ya es socio activo)</span></label>
+                <input id="alta-equipo-titular" type="text" placeholder="Ej: Docentes A" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit">
+              </div>
+            </div>
+
+            <!-- Observaciones — siempre visible -->
             <div class="form-group">
-              <label>Tipo de Socio</label>
-              <select id="alta-tipo-socio" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit">
-                <option value="Activo">Activo</option>
-                <option value="Pasivo">Pasivo (solo cuota social)</option>
-                <option value="Colaborador">Colaborador</option>
-              </select>
+              <label>Observaciones <span style="font-size:0.8rem;color:#6b7280">(opcional)</span></label>
+              <textarea id="alta-obs" rows="2" placeholder="Ej: Presenta ficha médica vencida. Traerá estudios la próxima semana." style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit;resize:vertical;font-size:0.9rem"></textarea>
             </div>
-            <div style="display:flex;gap:16px">
-              <label style="display:flex;align-items:center;gap:6px;font-size:0.88rem;cursor:pointer">
-                <input type="checkbox" id="alta-mas35"> Mayor de 35
-              </label>
-              <label style="display:flex;align-items:center;gap:6px;font-size:0.88rem;cursor:pointer">
-                <input type="checkbox" id="alta-ic"> Intercategoría
-              </label>
-            </div>
+
           </div>
           <div class="modal-footer">
             <button class="btn-sm btn-ver" onclick="cerrarModal('modal-alta-jug')">Cancelar</button>
@@ -4400,11 +4457,15 @@ async function renderGestionJugadores(equipoFiltro = '') {
             </div>
             <div style="display:flex;gap:16px">
               <label style="display:flex;align-items:center;gap:6px;font-size:0.88rem;cursor:pointer">
-                <input type="checkbox" id="edit-jug-mas35"> Mayor de 35
+                <input type="checkbox" id="edit-jug-mas35"> <span id="edit-jug-mas35-label">Mayor de 35</span>
               </label>
               <label style="display:flex;align-items:center;gap:6px;font-size:0.88rem;cursor:pointer">
                 <input type="checkbox" id="edit-jug-ic"> Intercategoría
               </label>
+            </div>
+            <div class="form-group" style="margin-top:4px">
+              <label>Observaciones <span style="font-size:0.8rem;color:#6b7280">(opcional)</span></label>
+              <textarea id="edit-jug-obs" rows="2" placeholder="Observaciones sobre el jugador..." style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit;resize:vertical;font-size:0.9rem"></textarea>
             </div>
           </div>
           <div class="modal-footer">
@@ -4465,31 +4526,86 @@ function filtrarJugadoresGestion(texto) {
   });
 }
 
+function onAltaTipoChange() {
+  const tipo = document.querySelector('input[name="alta-tipo-alta"]:checked')?.value || 'nuevo';
+  const esIC = tipo === 'ic';
+
+  // Estilos de los radio buttons
+  ['nuevo','reingreso','ic'].forEach(t => {
+    const lbl = document.getElementById('alta-tipo-label-' + t);
+    const radio = document.getElementById('alta-tipo-' + t);
+    if (lbl) {
+      const sel = radio?.checked;
+      lbl.style.borderColor = sel ? (t === 'ic' ? '#7c3aed' : '#3b82f6') : 'var(--gris1)';
+      lbl.style.background  = sel ? (t === 'ic' ? '#f5f3ff' : '#eff6ff') : '';
+    }
+  });
+
+  // Mostrar/ocultar secciones
+  document.getElementById('alta-aviso-ic').style.display    = esIC ? 'block' : 'none';
+  document.getElementById('alta-campos-doc').style.display  = esIC ? 'none'  : 'block';
+  document.getElementById('alta-campos-ic').style.display   = esIC ? 'block' : 'none';
+
+  // Actualizar label Mayor de 35/50 según equipo seleccionado
+  actualizarLabelMas35Alta();
+}
+
+function actualizarLabelMas35Alta() {
+  const equipoId = document.getElementById('alta-equipo')?.value || '';
+  const eq = (APP.equipos || EQUIPOS_FALLBACK).find(e =>
+    e.id.replace(/[\s_]+/g,'').toLowerCase() === equipoId.replace(/[\s_]+/g,'').toLowerCase()
+  );
+  const esSenior = eq && (eq.cat || '').toLowerCase().includes('senior');
+  const lbl = document.getElementById('alta-mas35-label');
+  if (lbl) lbl.textContent = esSenior ? 'Mayor de 50' : 'Mayor de 35';
+}
+
 function abrirModalAltaJugador() {
   document.getElementById('alta-nombre').value   = '';
   document.getElementById('alta-dni').value      = '';
   document.getElementById('alta-fecha-nac').value = '';
   document.getElementById('alta-tipo-socio').value = 'Activo';
   document.getElementById('alta-mas35').checked  = false;
-  document.getElementById('alta-ic').checked     = false;
+  document.getElementById('alta-obs').value       = '';
+  document.getElementById('alta-dni-ic').value    = '';
+  document.getElementById('alta-equipo-titular').value = '';
+  // Reset radio a "nuevo"
+  document.getElementById('alta-tipo-nuevo').checked = true;
+  onAltaTipoChange();
   abrirModal('modal-alta-jug');
+  // Listener para actualizar label cuando cambia el equipo
+  document.getElementById('alta-equipo').onchange = actualizarLabelMas35Alta;
 }
 
 async function confirmarAltaJugador() {
   const equipoId = document.getElementById('alta-equipo').value;
   const nombre   = document.getElementById('alta-nombre').value.trim();
+  const tipoAlta = document.querySelector('input[name="alta-tipo-alta"]:checked')?.value || 'nuevo';
+  const esIC     = tipoAlta === 'ic';
+
   if (!equipoId) { showToast('Seleccioná un equipo', 'error'); return; }
   if (!nombre)   { showToast('Ingresá el nombre del jugador', 'error'); return; }
+
   const btn = document.getElementById('btn-alta-jug');
   btn.disabled = true; btn.textContent = 'Guardando...';
-  const dni      = document.getElementById('alta-dni')?.value?.trim() || '';
-  const fechaNac = document.getElementById('alta-fecha-nac')?.value || '';
-  const tipoSocio = document.getElementById('alta-tipo-socio')?.value || 'Activo';
+
+  const dni            = esIC
+    ? (document.getElementById('alta-dni-ic')?.value?.trim() || '')
+    : (document.getElementById('alta-dni')?.value?.trim() || '');
+  const fechaNac       = esIC ? '' : (document.getElementById('alta-fecha-nac')?.value || '');
+  const tipoSocio      = esIC ? 'Activo' : (document.getElementById('alta-tipo-socio')?.value || 'Activo');
+  const mas35          = esIC ? false : document.getElementById('alta-mas35').checked;
+  const obs            = document.getElementById('alta-obs')?.value?.trim() || '';
+  const equipoTitular  = esIC ? (document.getElementById('alta-equipo-titular')?.value?.trim() || '') : '';
+
   try {
     const data = await api('altaJugador', {
       equipoId, nombre, dni, fechaNac, tipoSocio,
-      mas35: String(document.getElementById('alta-mas35').checked),
-      ic:    String(document.getElementById('alta-ic').checked),
+      mas35: String(mas35),
+      ic:    String(esIC),
+      tipoAlta,
+      obs,
+      equipoTitular,
     });
     if (data.ok) {
       cerrarModal('modal-alta-jug');
@@ -4500,13 +4616,14 @@ async function confirmarAltaJugador() {
   btn.disabled = false; btn.textContent = '➕ Dar de alta';
 }
 
-function abrirModalEditarJugador(id, nombre, equipoId, mas35, ic, dni, tipoSocio, fechaNac) {
+function abrirModalEditarJugador(id, nombre, equipoId, mas35, ic, dni, tipoSocio, fechaNac, obs) {
   document.getElementById('edit-jug-id').value      = id;
   document.getElementById('edit-jug-nombre').value  = nombre;
   document.getElementById('edit-jug-dni').value     = dni || '';
   document.getElementById('edit-jug-tipo-socio').value = tipoSocio || 'Activo';
   document.getElementById('edit-jug-mas35').checked = mas35 === true || mas35 === 'true';
   document.getElementById('edit-jug-ic').checked    = ic    === true || ic    === 'true';
+  document.getElementById('edit-jug-obs').value     = obs || '';
   // Convertir fecha dd/mm/yyyy a yyyy-mm-dd para input date
   let fechaInput = '';
   if (fechaNac && fechaNac.includes('/')) {
@@ -4516,6 +4633,13 @@ function abrirModalEditarJugador(id, nombre, equipoId, mas35, ic, dni, tipoSocio
     fechaInput = fechaNac;
   }
   document.getElementById('edit-jug-fecha-nac').value = fechaInput;
+  // Label Mayor de 35/50 según categoría del equipo
+  const eq = (APP.equipos || EQUIPOS_FALLBACK).find(e =>
+    e.id.replace(/[\s_]+/g,'').toLowerCase() === String(equipoId||'').replace(/[\s_]+/g,'').toLowerCase()
+  );
+  const esSenior = eq && (eq.cat || '').toLowerCase().includes('senior');
+  const lbl = document.getElementById('edit-jug-mas35-label');
+  if (lbl) lbl.textContent = esSenior ? 'Mayor de 50' : 'Mayor de 35';
   abrirModal('modal-editar-jug');
 }
 
@@ -4526,11 +4650,13 @@ async function confirmarEditarJugador() {
   const dni      = document.getElementById('edit-jug-dni')?.value?.trim() || '';
   const fechaNac = document.getElementById('edit-jug-fecha-nac')?.value || '';
   const tipoSocio = document.getElementById('edit-jug-tipo-socio')?.value || 'Activo';
+  const obs       = document.getElementById('edit-jug-obs')?.value?.trim() || '';
   try {
     const data = await api('editarJugador', {
       jugadorId, nombre, dni, fechaNac, tipoSocio,
       mas35: String(document.getElementById('edit-jug-mas35').checked),
       ic:    String(document.getElementById('edit-jug-ic').checked),
+      obs,
     });
     if (data.ok) {
       cerrarModal('modal-editar-jug');
