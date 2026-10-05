@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- PAGOS CDP — Frontend v5.62 — 2026-10-05 ARG (+ modal alta jugador: tipo alta/reingreso/IC, Mayor de 50 en Senior, observaciones) -->
+<!-- PAGOS CDP — Frontend v5.63 — 2026-10-05 ARG (+ formulario alta delegado: tipo alta/reingreso/IC, Mayor 50 Senior, obs, IC sin docs) -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -6342,23 +6342,53 @@ async function imprimirCarnetsSeleccionados() {
 }
 
 function renderFormularioSolicitudAlta(cnt) {
+  const esSenior = APP.equipo && (APP.equipo.categoria || '').toLowerCase().includes('senior');
+  const labelMas = esSenior ? 'Mayor de 50' : 'Mayor de 35';
+
   cnt.innerHTML = `
     <div class="card">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
         <button class="btn-sm btn-ver" onclick="renderGestionDelegado('menu')">← Volver</button>
-        <div class="card-title" style="margin:0">➕ Solicitud de Alta de Nuevo Jugador</div>
+        <div class="card-title" style="margin:0">➕ Solicitud de Alta de Jugador</div>
       </div>
-      
-      <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px 16px;margin-bottom:20px;font-size:0.83rem;color:#1d4ed8;line-height:1.7">
-        <strong>Documentación requerida:</strong><br>
-        • Nombre completo y DNI<br>
-        • Ficha médica completa con firma de cardiólogo + ergometría + electrocardiograma (para Senior o mayores de 40, debe renovarse anualmente)<br>
-        • Ficha de Inscripción con foto 4x4<br>
-        • Fotocopia de título autenticada, o Certificado de título en trámite + analítico de materias aprobadas<br>
-        • Si es cónyuge de un profesional con título: libreta de familia
+
+      <!-- TIPO DE ALTA -->
+      <div style="margin-bottom:20px">
+        <div style="font-weight:700;font-size:0.85rem;color:var(--azul);text-transform:uppercase;letter-spacing:0.05em;padding-bottom:6px;border-bottom:2px solid var(--gris1);margin-bottom:12px">
+          📋 Tipo de alta
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <label id="sol-tipo-label-nuevo" style="display:flex;align-items:flex-start;gap:10px;padding:12px;border:2px solid #3b82f6;border-radius:8px;cursor:pointer;background:#eff6ff">
+            <input type="radio" name="sol-tipo-alta" id="sol-tipo-nuevo" value="nuevo" checked onchange="onSolTipoChange()" style="margin-top:3px;accent-color:#3b82f6">
+            <div>
+              <div style="font-weight:700;color:#1e40af">🆕 Alta Normal — Nuevo Socio</div>
+              <div style="font-size:0.8rem;color:#3b82f6;margin-top:2px">Primera vez en el club o vuelve después de una baja. Se requiere toda la documentación.</div>
+            </div>
+          </label>
+          <label id="sol-tipo-label-reingreso" style="display:flex;align-items:flex-start;gap:10px;padding:12px;border:2px solid var(--gris1);border-radius:8px;cursor:pointer">
+            <input type="radio" name="sol-tipo-alta" id="sol-tipo-reingreso" value="reingreso" onchange="onSolTipoChange()" style="margin-top:3px;accent-color:#3b82f6">
+            <div>
+              <div style="font-weight:700;color:#374151">🔄 Reingreso — Fue socio antes</div>
+              <div style="font-size:0.8rem;color:#6b7280;margin-top:2px">Ya fue socio y vuelve. Indicar en observaciones qué documentación ya está en el club.</div>
+            </div>
+          </label>
+          <label id="sol-tipo-label-ic" style="display:flex;align-items:flex-start;gap:10px;padding:12px;border:2px solid var(--gris1);border-radius:8px;cursor:pointer">
+            <input type="radio" name="sol-tipo-alta" id="sol-tipo-ic" value="ic" onchange="onSolTipoChange()" style="margin-top:3px;accent-color:#7c3aed">
+            <div>
+              <div style="font-weight:700;color:#374151">🔀 Alta Intercategoría — Ya es Socio del Club</div>
+              <div style="font-size:0.8rem;color:#6b7280;margin-top:2px">Ya pertenece a otro equipo. <strong>No se necesita nueva documentación</strong>. Solo se lo agrega como IC a este equipo.</div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- AVISO IC -->
+      <div id="sol-aviso-ic" style="display:none;background:#f5f3ff;border-left:4px solid #7c3aed;padding:12px 14px;border-radius:0 8px 8px 0;font-size:0.85rem;color:#5b21b6;margin-bottom:16px">
+        ⚠️ <strong>Alta IC:</strong> El jugador ya es socio activo en otro equipo del club. Solo completá sus datos y el equipo donde ya juega. No se adjuntan documentos nuevos.
       </div>
 
       <div style="display:flex;flex-direction:column;gap:16px">
+
         <!-- Datos personales -->
         <div style="font-weight:700;font-size:0.85rem;color:var(--azul);text-transform:uppercase;letter-spacing:0.05em;padding-bottom:6px;border-bottom:2px solid var(--gris1)">
           👤 Datos personales
@@ -6372,12 +6402,22 @@ function renderFormularioSolicitudAlta(cnt) {
             <label>DNI *</label>
             <input id="sol-dni" type="text" placeholder="12345678" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit">
           </div>
-          <div class="form-group" style="flex:1;min-width:150px">
+          <div class="form-group" id="sol-wrap-fecha" style="flex:1;min-width:150px">
             <label>Fecha de Nacimiento *</label>
             <input id="sol-fecha-nac" type="date" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit">
           </div>
         </div>
-        <div style="display:flex;gap:12px;flex-wrap:wrap">
+
+        <!-- Equipo titular (solo IC) -->
+        <div id="sol-wrap-equipo-titular" style="display:none">
+          <div class="form-group">
+            <label>Equipo titular <span style="font-size:0.8rem;color:#6b7280">(donde ya es socio activo)</span> *</label>
+            <input id="sol-equipo-titular" type="text" placeholder="Ej: Docentes A" style="width:100%;padding:10px;border:1.5px solid #7c3aed;border-radius:8px;font-family:inherit">
+          </div>
+        </div>
+
+        <!-- Tipo socio + título (se ocultan en IC) -->
+        <div id="sol-wrap-tipo-socio" style="display:flex;gap:12px;flex-wrap:wrap">
           <div class="form-group" style="flex:1;min-width:180px">
             <label>Tipo de Socio *</label>
             <select id="sol-tipo-socio" style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit">
@@ -6396,44 +6436,60 @@ function renderFormularioSolicitudAlta(cnt) {
             </select>
           </div>
         </div>
+
+        <!-- Checkboxes -->
         <div style="display:flex;gap:20px;flex-wrap:wrap">
           <label style="display:flex;align-items:center;gap:6px;font-size:0.88rem;cursor:pointer">
-            <input type="checkbox" id="sol-mas35"> Mayor de 35
+            <input type="checkbox" id="sol-mas35"> ${labelMas}
           </label>
-          <label style="display:flex;align-items:center;gap:6px;font-size:0.88rem;cursor:pointer">
-            <input type="checkbox" id="sol-ic"> Intercategoría
+          <label id="sol-wrap-ic-check" style="display:flex;align-items:center;gap:6px;font-size:0.88rem;cursor:pointer">
+            <input type="checkbox" id="sol-ic" disabled checked style="accent-color:#7c3aed"> Intercategoría
           </label>
         </div>
 
-        <!-- Archivos -->
-        <div style="font-weight:700;font-size:0.85rem;color:var(--azul);text-transform:uppercase;letter-spacing:0.05em;padding-bottom:6px;border-bottom:2px solid var(--gris1);margin-top:8px">
-          📎 Archivos adjuntos
+        <!-- Observaciones -->
+        <div class="form-group">
+          <label>Observaciones <span style="font-size:0.8rem;color:#6b7280">(opcional)</span></label>
+          <textarea id="sol-obs" rows="2" placeholder="Ej: Presenta estudios médicos del año pasado. Traerá los nuevos la próxima semana." style="width:100%;padding:10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit;resize:vertical;font-size:0.9rem"></textarea>
         </div>
-        
-        ${['ficha-medica', 'ficha-inscripcion', 'titulo', 'extra', 'extra2', 'extra3', 'extra4', 'extra5'].map((tipo, i) => {
-          const labels = {
-            'ficha-medica':     { label:'Ficha Médica (con estudios, ergo y electro) *', icon:'🏥' },
-            'ficha-inscripcion':{ label:'Ficha de Inscripción (con foto 4x4) *',          icon:'📝' },
-            'titulo':           { label:'Título / Certificado en trámite + analítico *',  icon:'🎓' },
-            'extra':            { label:'Documento adicional (libreta, otro)',             icon:'📁' },
-            'extra2':           { label:'Documento adicional 2',                          icon:'📁' },
-            'extra3':           { label:'Documento adicional 3',                          icon:'📁' },
-            'extra4':           { label:'Documento adicional 4',                          icon:'📁' },
-            'extra5':           { label:'Documento adicional 5',                          icon:'📁' },
-          };
-          const l = labels[tipo];
-          return `
-          <div style="border:1.5px dashed var(--gris1);border-radius:10px;padding:14px;background:var(--gris0)">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-              <span style="font-size:0.83rem;font-weight:600;color:var(--texto)">${l.icon} ${l.label}</span>
-              <span id="file-status-${tipo}" style="font-size:0.75rem;color:var(--gris3)">Sin archivo</span>
-            </div>
-            <label style="display:inline-flex;align-items:center;gap:8px;padding:8px 14px;background:var(--azul2);color:white;border-radius:7px;cursor:pointer;font-size:0.82rem;font-weight:600">
-              📎 Seleccionar archivo
-              <input type="file" accept=".pdf,.jpg,.jpeg,.png" style="display:none" onchange="handleAdjunto(this,'${tipo}')">
-            </label>
-          </div>`;
-        }).join('')}
+
+        <!-- Archivos (se ocultan en IC) -->
+        <div id="sol-wrap-archivos">
+          <div style="font-weight:700;font-size:0.85rem;color:var(--azul);text-transform:uppercase;letter-spacing:0.05em;padding-bottom:6px;border-bottom:2px solid var(--gris1);margin-bottom:12px">
+            📎 Archivos adjuntos
+          </div>
+          <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px 16px;margin-bottom:12px;font-size:0.83rem;color:#1d4ed8;line-height:1.7">
+            <strong>Documentación requerida:</strong><br>
+            • Ficha médica completa con firma de cardiólogo + ergometría + electrocardiograma${esSenior ? ' <strong>(Senior: obligatorio, renovar anualmente)</strong>' : ' (para mayores de 40, renovar anualmente)'}<br>
+            • Ficha de Inscripción con foto 4x4<br>
+            • Fotocopia de título autenticada, o Certificado en trámite + analítico<br>
+            • Si es cónyuge de un profesional: libreta de familia
+          </div>
+          ${['ficha-medica', 'ficha-inscripcion', 'titulo', 'extra', 'extra2', 'extra3', 'extra4', 'extra5'].map(tipo => {
+            const labels = {
+              'ficha-medica':     { label:'Ficha Médica (con estudios, ergo y electro) *', icon:'🏥' },
+              'ficha-inscripcion':{ label:'Ficha de Inscripción (con foto 4x4) *',          icon:'📝' },
+              'titulo':           { label:'Título / Certificado en trámite + analítico *',  icon:'🎓' },
+              'extra':            { label:'Documento adicional (libreta, otro)',             icon:'📁' },
+              'extra2':           { label:'Documento adicional 2',                          icon:'📁' },
+              'extra3':           { label:'Documento adicional 3',                          icon:'📁' },
+              'extra4':           { label:'Documento adicional 4',                          icon:'📁' },
+              'extra5':           { label:'Documento adicional 5',                          icon:'📁' },
+            };
+            const l = labels[tipo];
+            return `
+            <div style="border:1.5px dashed var(--gris1);border-radius:10px;padding:14px;background:var(--gris0);margin-bottom:8px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                <span style="font-size:0.83rem;font-weight:600;color:var(--texto)">${l.icon} ${l.label}</span>
+                <span id="file-status-${tipo}" style="font-size:0.75rem;color:var(--gris3)">Sin archivo</span>
+              </div>
+              <label style="display:inline-flex;align-items:center;gap:8px;padding:8px 14px;background:var(--azul2);color:white;border-radius:7px;cursor:pointer;font-size:0.82rem;font-weight:600">
+                📎 Seleccionar archivo
+                <input type="file" accept=".pdf,.jpg,.jpeg,.png" style="display:none" onchange="handleAdjunto(this,'${tipo}')">
+              </label>
+            </div>`;
+          }).join('')}
+        </div>
 
         <button class="btn-sm btn-aprobar" style="padding:12px 24px;font-size:0.95rem;margin-top:8px" onclick="enviarSolicitudAlta()" id="btn-enviar-solicitud">
           📤 Enviar solicitud
@@ -6441,8 +6497,44 @@ function renderFormularioSolicitudAlta(cnt) {
       </div>
     </div>`;
 
-  // Inicializar mapa de archivos adjuntos
   window._adjuntos = {};
+
+  // Inicializar estilos de radio buttons
+  onSolTipoChange();
+}
+
+function onSolTipoChange() {
+  const tipo = document.querySelector('input[name="sol-tipo-alta"]:checked')?.value || 'nuevo';
+  const esIC = tipo === 'ic';
+
+  // Estilos radio buttons
+  ['nuevo','reingreso','ic'].forEach(t => {
+    const lbl = document.getElementById('sol-tipo-label-' + t);
+    const radio = document.getElementById('sol-tipo-' + t);
+    if (!lbl || !radio) return;
+    lbl.style.borderColor = radio.checked ? (t === 'ic' ? '#7c3aed' : '#3b82f6') : 'var(--gris1)';
+    lbl.style.background  = radio.checked ? (t === 'ic' ? '#f5f3ff' : '#eff6ff') : '';
+  });
+
+  // Mostrar/ocultar secciones
+  const aviso       = document.getElementById('sol-aviso-ic');
+  const wrapFecha   = document.getElementById('sol-wrap-fecha');
+  const wrapTitular = document.getElementById('sol-wrap-equipo-titular');
+  const wrapTipo    = document.getElementById('sol-wrap-tipo-socio');
+  const wrapArchs   = document.getElementById('sol-wrap-archivos');
+  const icCheck     = document.getElementById('sol-ic');
+
+  if (aviso)       aviso.style.display       = esIC ? 'block' : 'none';
+  if (wrapFecha)   wrapFecha.style.display   = esIC ? 'none'  : '';
+  if (wrapTitular) wrapTitular.style.display = esIC ? 'block' : 'none';
+  if (wrapTipo)    wrapTipo.style.display    = esIC ? 'none'  : 'flex';
+  if (wrapArchs)   wrapArchs.style.display   = esIC ? 'none'  : 'block';
+
+  // Checkbox IC: en modo IC lo mostramos tildado y deshabilitado
+  if (icCheck) {
+    icCheck.checked  = esIC;
+    icCheck.disabled = esIC;
+  }
 }
 
 async function handleAdjunto(input, tipo) {
@@ -6458,29 +6550,37 @@ async function handleAdjunto(input, tipo) {
 }
 
 async function enviarSolicitudAlta() {
-  const nombre    = document.getElementById('sol-nombre')?.value?.trim().toUpperCase();
-  const dni       = document.getElementById('sol-dni')?.value?.trim();
-  const fechaNac  = document.getElementById('sol-fecha-nac')?.value;
-  const tipoSocio = document.getElementById('sol-tipo-socio')?.value;
-  const tipoTitulo = document.getElementById('sol-tipo-titulo')?.value;
-  const mas35     = document.getElementById('sol-mas35')?.checked;
-  const ic        = document.getElementById('sol-ic')?.checked;
+  const tipoAlta   = document.querySelector('input[name="sol-tipo-alta"]:checked')?.value || 'nuevo';
+  const esIC       = tipoAlta === 'ic';
+  const nombre     = document.getElementById('sol-nombre')?.value?.trim().toUpperCase();
+  const dni        = document.getElementById('sol-dni')?.value?.trim();
+  const fechaNac   = esIC ? '' : (document.getElementById('sol-fecha-nac')?.value || '');
+  const tipoSocio  = esIC ? 'Activo' : (document.getElementById('sol-tipo-socio')?.value || 'Activo');
+  const tipoTitulo = esIC ? '' : (document.getElementById('sol-tipo-titulo')?.value || '');
+  const mas35      = document.getElementById('sol-mas35')?.checked || false;
+  const obs        = document.getElementById('sol-obs')?.value?.trim() || '';
+  const equipoTitular = esIC ? (document.getElementById('sol-equipo-titular')?.value?.trim() || '') : '';
 
-  if (!nombre || !dni || !fechaNac) { showToast('Completá nombre, DNI y fecha de nacimiento', 'error'); return; }
+  if (!nombre || !dni) { showToast('Completá nombre y DNI', 'error'); return; }
+  if (!esIC && !fechaNac) { showToast('Completá la fecha de nacimiento', 'error'); return; }
+  if (esIC && !equipoTitular) { showToast('Indicá el equipo donde ya es socio', 'error'); return; }
 
   const adjuntos = Object.values(window._adjuntos || {});
-  if (adjuntos.length === 0) { showToast('Adjuntá al menos un archivo', 'error'); return; }
+  if (!esIC && adjuntos.length === 0) { showToast('Adjuntá al menos un archivo', 'error'); return; }
 
   const btn = document.getElementById('btn-enviar-solicitud');
   btn.disabled = true; btn.textContent = '⏳ Enviando...';
 
   try {
     const data = await apiPost('solicitarAlta', {
-      equipoId:    APP.equipo.id,
+      equipoId:     APP.equipo.id,
       nombreEquipo: APP.equipo.nombre,
       nombre, dni, fechaNac, tipoSocio, tipoTitulo,
       mas35: String(mas35),
-      ic:    String(ic),
+      ic:    String(esIC),
+      tipoAlta,
+      obs,
+      equipoTitular,
       archivos: JSON.stringify(adjuntos),
       tipoSolicitud: 'Alta',
     });
