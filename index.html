@@ -6342,7 +6342,7 @@ async function imprimirCarnetsSeleccionados() {
 }
 
 function renderFormularioSolicitudAlta(cnt) {
-  const esSenior = APP.equipo && (APP.equipo.categoria || '').toLowerCase().includes('senior');
+  const esSenior = APP.equipo && (APP.equipo.cat || '').toLowerCase().includes('senior');
   const labelMas = esSenior ? 'Mayor de 50' : 'Mayor de 35';
 
   cnt.innerHTML = `
@@ -6442,9 +6442,8 @@ function renderFormularioSolicitudAlta(cnt) {
           <label style="display:flex;align-items:center;gap:6px;font-size:0.88rem;cursor:pointer">
             <input type="checkbox" id="sol-mas35"> ${labelMas}
           </label>
-          <label id="sol-wrap-ic-check" style="display:flex;align-items:center;gap:6px;font-size:0.88rem;cursor:pointer">
-            <input type="checkbox" id="sol-ic" disabled checked style="accent-color:#7c3aed"> Intercategoría
-          </label>
+          <!-- IC se define por el tipo de alta seleccionado arriba, no por checkbox -->
+          <input type="hidden" id="sol-ic" value="false">
         </div>
 
         <!-- Observaciones -->
@@ -6530,11 +6529,8 @@ function onSolTipoChange() {
   if (wrapTipo)    wrapTipo.style.display    = esIC ? 'none'  : 'flex';
   if (wrapArchs)   wrapArchs.style.display   = esIC ? 'none'  : 'block';
 
-  // Checkbox IC: en modo IC lo mostramos tildado y deshabilitado
-  if (icCheck) {
-    icCheck.checked  = esIC;
-    icCheck.disabled = esIC;
-  }
+  // Hidden field IC: se setea según el tipo de alta
+  if (icCheck) icCheck.value = esIC ? 'true' : 'false';
 }
 
 async function handleAdjunto(input, tipo) {
