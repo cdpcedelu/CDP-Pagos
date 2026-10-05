@@ -6362,21 +6362,21 @@ function renderFormularioSolicitudAlta(cnt) {
             <input type="radio" name="sol-tipo-alta" id="sol-tipo-nuevo" value="nuevo" checked onchange="onSolTipoChange()" style="margin-top:3px;accent-color:#3b82f6">
             <div>
               <div style="font-weight:700;color:#1e40af">🆕 Alta Normal — Nuevo Socio</div>
-              <div style="font-size:0.8rem;color:#3b82f6;margin-top:2px">Primera vez en el club o vuelve después de una baja. Se requiere toda la documentación.</div>
+              <div style="font-size:0.8rem;color:#3b82f6;margin-top:2px">Primera vez en el club. Requiere: <strong>Ficha Médica + Ficha de Inscripción + Título</strong>.</div>
             </div>
           </label>
           <label id="sol-tipo-label-reingreso" style="display:flex;align-items:flex-start;gap:10px;padding:12px;border:2px solid var(--gris1);border-radius:8px;cursor:pointer">
             <input type="radio" name="sol-tipo-alta" id="sol-tipo-reingreso" value="reingreso" onchange="onSolTipoChange()" style="margin-top:3px;accent-color:#3b82f6">
             <div>
               <div style="font-weight:700;color:#374151">🔄 Reingreso — Fue socio antes</div>
-              <div style="font-size:0.8rem;color:#6b7280;margin-top:2px">Ya fue socio y vuelve. Indicar en observaciones qué documentación ya está en el club.</div>
+              <div style="font-size:0.8rem;color:#6b7280;margin-top:2px">Ya fue socio del club y vuelve. Requiere: <strong>Ficha Médica + Ficha de Inscripción + DNI</strong>.</div>
             </div>
           </label>
           <label id="sol-tipo-label-ic" style="display:flex;align-items:flex-start;gap:10px;padding:12px;border:2px solid var(--gris1);border-radius:8px;cursor:pointer">
             <input type="radio" name="sol-tipo-alta" id="sol-tipo-ic" value="ic" onchange="onSolTipoChange()" style="margin-top:3px;accent-color:#7c3aed">
             <div>
               <div style="font-weight:700;color:#374151">🔀 Alta Intercategoría — Ya es Socio del Club</div>
-              <div style="font-size:0.8rem;color:#6b7280;margin-top:2px">Ya pertenece a otro equipo. <strong>No se necesita nueva documentación</strong>. Solo se lo agrega como IC a este equipo.</div>
+              <div style="font-size:0.8rem;color:#6b7280;margin-top:2px">Ya pertenece a otro equipo del club. Requiere: <strong>Ficha de Inscripción + DNI</strong>. No se necesita nueva ficha médica ni título.</div>
             </div>
           </label>
         </div>
@@ -6457,9 +6457,9 @@ function renderFormularioSolicitudAlta(cnt) {
           <div style="font-weight:700;font-size:0.85rem;color:var(--azul);text-transform:uppercase;letter-spacing:0.05em;padding-bottom:6px;border-bottom:2px solid var(--gris1);margin-bottom:12px">
             📎 Archivos adjuntos
           </div>
-          <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px 16px;margin-bottom:12px;font-size:0.83rem;color:#1d4ed8;line-height:1.7">
-            <strong>Documentación requerida:</strong><br>
-            • Ficha médica completa con firma de cardiólogo + ergometría + electrocardiograma${esSenior ? ' <strong>(Senior: obligatorio, renovar anualmente)</strong>' : ' (para mayores de 40, renovar anualmente)'}<br>
+          <div id="sol-docs-info" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px 16px;margin-bottom:12px;font-size:0.83rem;color:#1d4ed8;line-height:1.7">
+            <strong>Documentación requerida — Alta Normal:</strong><br>
+            • Ficha Médica completa con firma de cardiólogo + ergometría + electrocardiograma${esSenior ? ' <strong>(Senior: obligatorio, renovar anualmente)</strong>' : ' (para mayores de 40, renovar anualmente)'}<br>
             • Ficha de Inscripción con foto 4x4<br>
             • Fotocopia de título autenticada, o Certificado en trámite + analítico<br>
             • Si es cónyuge de un profesional: libreta de familia
@@ -6477,7 +6477,7 @@ function renderFormularioSolicitudAlta(cnt) {
             };
             const l = labels[tipo];
             return `
-            <div style="border:1.5px dashed var(--gris1);border-radius:10px;padding:14px;background:var(--gris0);margin-bottom:8px">
+            <div id="sol-arch-wrap-${tipo}" style="border:1.5px dashed var(--gris1);border-radius:10px;padding:14px;background:var(--gris0);margin-bottom:8px">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
                 <span style="font-size:0.83rem;font-weight:600;color:var(--texto)">${l.icon} ${l.label}</span>
                 <span id="file-status-${tipo}" style="font-size:0.75rem;color:var(--gris3)">Sin archivo</span>
@@ -6523,11 +6523,38 @@ function onSolTipoChange() {
   const wrapArchs   = document.getElementById('sol-wrap-archivos');
   const icCheck     = document.getElementById('sol-ic');
 
+  const esReingreso = tipo === 'reingreso';
+  const soloInscripcion = esIC; // IC: solo ficha inscripcion + DNI (reingreso sí pide ficha médica)
+
   if (aviso)       aviso.style.display       = esIC ? 'block' : 'none';
   if (wrapFecha)   wrapFecha.style.display   = esIC ? 'none'  : '';
   if (wrapTitular) wrapTitular.style.display = esIC ? 'block' : 'none';
-  if (wrapTipo)    wrapTipo.style.display    = esIC ? 'none'  : 'flex';
-  if (wrapArchs)   wrapArchs.style.display   = esIC ? 'none'  : 'block';
+  if (wrapTipo)    wrapTipo.style.display    = soloInscripcion ? 'none' : 'flex';
+  if (wrapArchs)   wrapArchs.style.display   = 'block'; // siempre visible
+
+  // Mostrar/ocultar archivos según tipo
+  const wrapFichaMedica = document.getElementById('sol-arch-wrap-ficha-medica');
+  const wrapTitulo      = document.getElementById('sol-arch-wrap-titulo');
+  if (wrapFichaMedica) wrapFichaMedica.style.display = soloInscripcion ? 'none' : 'block';
+  if (wrapTitulo)      wrapTitulo.style.display      = soloInscripcion ? 'none' : 'block';
+
+  // Texto informativo de docs
+  const docsInfo = document.getElementById('sol-docs-info');
+  if (docsInfo) {
+    if (soloInscripcion) {
+      docsInfo.innerHTML = '<strong>Documentación requerida — ' + (esIC ? 'Alta IC' : 'Reingreso') + ':</strong><br>' +
+        '• Ficha de Inscripción con foto 4x4<br>' +
+        '• DNI (fotocopia o digital)';
+    } else {
+      const esSeniorLocal = APP.equipo && (APP.equipo.cat||'').toLowerCase().includes('senior');
+      docsInfo.innerHTML = '<strong>Documentación requerida — Alta Normal:</strong><br>' +
+        '• Ficha Médica completa con firma de cardiólogo + ergometría + electrocardiograma' +
+        (esSeniorLocal ? ' <strong>(Senior: obligatorio, renovar anualmente)</strong>' : ' (para mayores de 40, renovar anualmente)') + '<br>' +
+        '• Ficha de Inscripción con foto 4x4<br>' +
+        '• Fotocopia de título autenticada, o Certificado en trámite + analítico<br>' +
+        '• Si es cónyuge de un profesional: libreta de familia';
+    }
+  }
 
   // Hidden field IC: se setea según el tipo de alta
   if (icCheck) icCheck.value = esIC ? 'true' : 'false';
