@@ -6376,7 +6376,7 @@ function renderFormularioSolicitudAlta(cnt) {
             <input type="radio" name="sol-tipo-alta" id="sol-tipo-ic" value="ic" onchange="onSolTipoChange()" style="margin-top:3px;accent-color:#7c3aed">
             <div>
               <div style="font-weight:700;color:#374151">🔀 Alta Intercategoría — Ya es Socio del Club</div>
-              <div style="font-size:0.8rem;color:#6b7280;margin-top:2px">Ya pertenece a otro equipo del club. Requiere: <strong>Ficha de Inscripción + DNI</strong>. No se necesita nueva ficha médica ni título.</div>
+              <div style="font-size:0.8rem;color:#6b7280;margin-top:2px">Ya es socio activo en otro equipo. <strong>No se requiere ninguna documentación adicional.</strong> Solo nombre, DNI y equipo titular.</div>
             </div>
           </label>
         </div>
@@ -6524,13 +6524,13 @@ function onSolTipoChange() {
   const icCheck     = document.getElementById('sol-ic');
 
   const esReingreso = tipo === 'reingreso';
-  const soloInscripcion = esIC; // IC: solo ficha inscripcion + DNI (reingreso sí pide ficha médica)
+  const soloInscripcion = false; // reingreso pide ficha médica + inscripción
 
   if (aviso)       aviso.style.display       = esIC ? 'block' : 'none';
   if (wrapFecha)   wrapFecha.style.display   = esIC ? 'none'  : '';
   if (wrapTitular) wrapTitular.style.display = esIC ? 'block' : 'none';
   if (wrapTipo)    wrapTipo.style.display    = soloInscripcion ? 'none' : 'flex';
-  if (wrapArchs)   wrapArchs.style.display   = 'block'; // siempre visible
+  if (wrapArchs)   wrapArchs.style.display   = esIC ? 'none' : 'block';
 
   // Mostrar/ocultar archivos según tipo
   const wrapFichaMedica = document.getElementById('sol-arch-wrap-ficha-medica');
