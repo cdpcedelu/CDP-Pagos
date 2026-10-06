@@ -6535,21 +6535,27 @@ function onSolTipoChange() {
   // Mostrar/ocultar archivos según tipo
   const wrapFichaMedica = document.getElementById('sol-arch-wrap-ficha-medica');
   const wrapTitulo      = document.getElementById('sol-arch-wrap-titulo');
-  if (wrapFichaMedica) wrapFichaMedica.style.display = soloInscripcion ? 'none' : 'block';
-  if (wrapTitulo)      wrapTitulo.style.display      = soloInscripcion ? 'none' : 'block';
+  // Ficha médica: oculta solo en IC (reingreso sí la pide)
+  if (wrapFichaMedica) wrapFichaMedica.style.display = esIC ? 'none' : 'block';
+  // Título: oculto en reingreso e IC
+  if (wrapTitulo)      wrapTitulo.style.display      = (esIC || esReingreso) ? 'none' : 'block';
 
-  // Texto informativo de docs
+  // Texto informativo de docs — cambia según tipo seleccionado
   const docsInfo = document.getElementById('sol-docs-info');
   if (docsInfo) {
-    if (soloInscripcion) {
-      docsInfo.innerHTML = '<strong>Documentación requerida — ' + (esIC ? 'Alta IC' : 'Reingreso') + ':</strong><br>' +
-        '• Ficha de Inscripción con foto 4x4<br>' +
-        '• DNI (fotocopia o digital)';
+    const esSeniorLocal = APP.equipo && (APP.equipo.cat||'').toLowerCase().includes('senior');
+    const fichaExtra = esSeniorLocal ? ' <strong>(Senior: obligatorio, renovar anualmente)</strong>' : ' (para mayores de 40, renovar anualmente)';
+    if (esIC) {
+      docsInfo.style.display = 'none'; // IC no requiere docs
+    } else if (esReingreso) {
+      docsInfo.style.display = 'block';
+      docsInfo.innerHTML = '<strong>Documentación requerida — Reingreso:</strong><br>' +
+        '• Ficha Médica completa con firma de cardiólogo + ergometría + electrocardiograma' + fichaExtra + '<br>' +
+        '• Ficha de Inscripción con foto 4x4';
     } else {
-      const esSeniorLocal = APP.equipo && (APP.equipo.cat||'').toLowerCase().includes('senior');
+      docsInfo.style.display = 'block';
       docsInfo.innerHTML = '<strong>Documentación requerida — Alta Normal:</strong><br>' +
-        '• Ficha Médica completa con firma de cardiólogo + ergometría + electrocardiograma' +
-        (esSeniorLocal ? ' <strong>(Senior: obligatorio, renovar anualmente)</strong>' : ' (para mayores de 40, renovar anualmente)') + '<br>' +
+        '• Ficha Médica completa con firma de cardiólogo + ergometría + electrocardiograma' + fichaExtra + '<br>' +
         '• Ficha de Inscripción con foto 4x4<br>' +
         '• Fotocopia de título autenticada, o Certificado en trámite + analítico<br>' +
         '• Si es cónyuge de un profesional: libreta de familia';
