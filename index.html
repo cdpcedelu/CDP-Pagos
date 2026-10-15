@@ -2333,20 +2333,20 @@ async function renderAdmin() {
           return `<div style="margin-bottom:4px">
             <div style="font-size:0.75rem;font-weight:700;color:var(--gris3);text-transform:uppercase;letter-spacing:0.05em;padding:6px 8px 4px">${label}</div>
             ${arr.map(e => {
-              const activoAlerta = e.activo > MAX_ACTIVOS;
-              const icAlerta     = e.ic > MAX_IC;
+              const activoAlerta = e.activo >= MAX_ACTIVOS; // rojo desde 24
+              const icAlerta     = e.ic >= MAX_IC;          // rojo desde 5
               const filaRojo     = activoAlerta || icAlerta;
               return `
               <div style="display:grid;grid-template-columns:1fr 44px 44px 44px 44px 60px;align-items:center;padding:5px 8px;border-bottom:1px solid var(--gris0);font-size:0.82rem;${filaRojo ? 'background:#fff5f5;' : ''}">
                 <div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${filaRojo ? 'color:#dc2626;' : ''}">${e.nombre}</div>
                 <div style="text-align:center;font-weight:700;color:var(--azul2)">${e.total}</div>
-                <div style="text-align:center;font-weight:700;color:${e.activo > MAX_ACTIVOS ? '#dc2626' : 'var(--verde)'}">
+                <div style="text-align:center;font-weight:700;color:${e.activo >= MAX_ACTIVOS ? '#dc2626' : 'var(--verde)'}">
                   ${e.activo}${e.activo > MAX_ACTIVOS ? ' ⚠️' : ''}
                 </div>
                 <div style="text-align:center;color:#d97706">${e.pasivo || '—'}</div>
                 <div style="text-align:center;color:#7c3aed">${e.colaborador || '—'}</div>
                 <div style="text-align:center">
-                  ${e.ic > 0 ? `<span style="background:${e.ic > MAX_IC ? '#fee2e2' : '#ede9fe'};color:${e.ic > MAX_IC ? '#dc2626' : '#6d28d9'};padding:1px 7px;border-radius:8px;font-size:0.75rem;font-weight:700">${e.ic} IC${e.ic > MAX_IC ? ' ⚠️' : ''}</span>` : ''}
+                  ${e.ic > 0 ? `<span style="background:${e.ic >= MAX_IC ? '#fee2e2' : '#ede9fe'};color:${e.ic >= MAX_IC ? '#dc2626' : '#6d28d9'};padding:1px 7px;border-radius:8px;font-size:0.75rem;font-weight:700">${e.ic} IC${e.ic > MAX_IC ? ' ⚠️' : ''}</span>` : ''}
                 </div>
               </div>`;
             }).join('')}
