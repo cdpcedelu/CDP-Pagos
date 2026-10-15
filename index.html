@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- PAGOS CDP — Frontend v5.63 — 2026-10-05 ARG (+ formulario alta delegado: tipo alta/reingreso/IC, Mayor 50 Senior, obs, IC sin docs) -->
+<!-- PAGOS CDP — Frontend v5.64 — 2026-10-15 ARG (+ formulario alta delegado: tipo alta/reingreso/IC, Mayor 50 Senior, obs, IC sin docs) -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -2258,9 +2258,10 @@ async function renderAdmin() {
 
   try {
     // Llamadas en paralelo para mejor performance
-    const [data, dataRech] = await Promise.all([
+    const [data, dataRech, dataJug] = await Promise.all([
       api('getResumen'),
-      api('getAllComprobantes', { mes: APP.filtroMes, estado: 'Rechazado' })
+      api('getAllComprobantes', { mes: APP.filtroMes, estado: 'Rechazado' }),
+      api('getResumenJugadores')
     ]);
     if (!data.ok) throw new Error(data.msg);
 
@@ -2318,6 +2319,50 @@ async function renderAdmin() {
             <div class="rc-legend-item"><div class="rc-dot" style="background:#f59e0b"></div><span>25–69% medio</span></div>
             <div class="rc-legend-item"><div class="rc-dot" style="background:#22c55e"></div><span>≥70% ok</span></div>
           </div>
+        </div>`;
+      })()}
+      ${(() => {
+        if (!dataJug || !dataJug.ok) return '';
+        const { equipos, totales } = dataJug;
+        const libres = equipos.filter(e => (e.cat||'').toLowerCase().includes('libre'));
+        const senior = equipos.filter(e => (e.cat||'').toLowerCase().includes('senior'));
+        function renderGrupo(label, arr) {
+          if (!arr.length) return '';
+          return `<div style="margin-bottom:4px">
+            <div style="font-size:0.75rem;font-weight:700;color:var(--gris3);text-transform:uppercase;letter-spacing:0.05em;padding:6px 8px 4px">${label}</div>
+            ${arr.map(e => `
+              <div style="display:grid;grid-template-columns:1fr 44px 44px 44px 44px 60px;align-items:center;padding:5px 8px;border-bottom:1px solid var(--gris0);font-size:0.82rem">
+                <div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.nombre}</div>
+                <div style="text-align:center;font-weight:700;color:var(--azul2)">${e.total}</div>
+                <div style="text-align:center;color:var(--verde)">${e.activo}</div>
+                <div style="text-align:center;color:#d97706">${e.pasivo || '—'}</div>
+                <div style="text-align:center;color:#7c3aed">${e.colaborador || '—'}</div>
+                <div style="text-align:center">${e.ic > 0 ? `<span style="background:#ede9fe;color:#6d28d9;padding:1px 7px;border-radius:8px;font-size:0.75rem;font-weight:700">${e.ic} IC</span>` : ''}</div>
+              </div>`).join('')}
+          </div>`;
+        }
+        return `
+        <div class="card" style="margin-bottom:16px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+            <div class="card-title" style="margin:0">👥 Jugadores por equipo</div>
+            <div style="display:flex;gap:12px;font-size:0.8rem;font-weight:700;flex-wrap:wrap">
+              <span style="color:var(--azul2)">🔵 ${totales.total} total</span>
+              <span style="color:var(--verde)">✅ ${totales.activo} activos</span>
+              <span style="color:#d97706">⏸ ${totales.pasivo} pasivos</span>
+              <span style="color:#7c3aed">⭕ ${totales.colaborador} col.</span>
+              <span style="color:var(--gris3)">🔀 ${totales.ic} IC</span>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 44px 44px 44px 44px 60px;padding:4px 8px;background:var(--gris0);border-radius:6px;font-size:0.71rem;font-weight:700;color:var(--gris3);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:2px">
+            <div>Equipo</div>
+            <div style="text-align:center">Total</div>
+            <div style="text-align:center">Activ.</div>
+            <div style="text-align:center">Pasiv.</div>
+            <div style="text-align:center">Col.</div>
+            <div style="text-align:center">IC</div>
+          </div>
+          ${renderGrupo('⬜ LIBRES', libres)}
+          ${renderGrupo('🔵 SENIOR', senior)}
         </div>`;
       })()}
       <div class="card">
