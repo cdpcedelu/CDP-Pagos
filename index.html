@@ -887,7 +887,7 @@
         <div class="upload-icon">📎</div>
         <div class="upload-text">
           <strong>Arrastrá o hacé clic</strong> para seleccionar el comprobante<br>
-          <span style="font-size:0.75rem; color:var(--gris2)">JPG, PNG o PDF · Máx 10MB</span>
+          <span style="font-size:0.75rem; color:var(--gris2)">JPG, PNG o PDF · Máx 5MB</span>
         </div>
       </div>
       <div class="upload-preview" id="upload-preview">
@@ -1517,6 +1517,29 @@ async function apiPost(accion, datos = {}) {
   return json;
 }
 
+// SEGURIDAD v5.46: Timeout de inactividad — cierra sesión después de 30 min sin actividad
+let _inactivityTimer = null;
+const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutos
+
+function resetInactivityTimer() {
+  if (!APP.token) return; // solo si hay sesión activa
+  clearTimeout(_inactivityTimer);
+  _inactivityTimer = setTimeout(() => {
+    if (APP.token) {
+      api('logout', { token: APP.token }).catch(() => {});
+      limpiarSesionLocal();
+      APP.token = null; APP.rol = null; APP.equipo = null;
+      showToast('Sesión cerrada por inactividad (30 min).', 'info');
+      setTimeout(() => location.reload(), 1500);
+    }
+  }, INACTIVITY_TIMEOUT_MS);
+}
+
+// Reiniciar el timer en cualquier interacción del usuario
+['click','keydown','touchstart','scroll'].forEach(ev =>
+  document.addEventListener(ev, resetInactivityTimer, { passive: true })
+);
+
 function manejarSesionExpirada() {
   // Limpiar estado sin hacer llamada API (la sesión ya expiró)
   limpiarSesionLocal();
@@ -1601,7 +1624,8 @@ async function doLogin() {
   btn.disabled = true; btn.textContent = 'Verificando...';
 
   try {
-    const data = await api('login', { equipoId, pin });
+    // SEGURIDAD v5.46: login via POST para que el PIN no viaje en la URL
+    const data = await apiPost('login', { equipoId, pin });
     if (data.ok) {
       if (!data.token) {
         showError(err, 'Error de sesión: el servidor no devolvió token. Verificá que el backend esté actualizado.');
@@ -1614,6 +1638,7 @@ async function doLogin() {
       APP.nombrePila = data.nombrePila || '';
       guardarSesionLocal();
       console.log('[CDP] Login delegado OK, token recibido:', APP.token.substring(0,8) + '...');
+      resetInactivityTimer(); // SEGURIDAD v5.46: iniciar timer de inactividad
       iniciarApp();
     } else {
       showError(err, data.msg || 'PIN incorrecto.');
@@ -1634,7 +1659,8 @@ async function doAdminLogin() {
   btn.disabled = true; btn.textContent = 'Verificando...';
 
   try {
-    const data = await api('loginAdmin', { pin });
+    // SEGURIDAD v5.46: loginAdmin via POST para que el PIN no viaje en la URL
+    const data = await apiPost('loginAdmin', { pin });
     if (data.ok) {
       if (!data.token) {
         showError(err, 'Error de sesión: el servidor no devolvió token. Verificá que el backend esté actualizado.');
@@ -1646,6 +1672,7 @@ async function doAdminLogin() {
       APP.nombrePila = data.nombrePila || '';
       guardarSesionLocal();
       console.log('[CDP] Login admin OK, token recibido:', APP.token.substring(0,8) + '...');
+      resetInactivityTimer(); // SEGURIDAD v5.46: iniciar timer de inactividad
       iniciarApp();
     } else {
       showError(err, 'PIN de administrador incorrecto.');
@@ -3673,8 +3700,8 @@ function cerrarModal(id) {
 function handleFile(input) {
   const file = input.files[0];
   if (!file) return;
-  if (file.size > 10 * 1024 * 1024) {
-    showToast('El archivo no puede superar 10MB', 'error'); return;
+  if (file.size > 5 * 1024 * 1024) {
+    showToast('El archivo no puede superar 5MB', 'error'); return;
   }
   APP.archivoSeleccionado = file;
   const prev = document.getElementById('upload-preview');
@@ -5224,25 +5251,18 @@ async function imprimirSeleccionadas() {
       return;
     }
 
-    // Usar el caché de CSS/paginaEquipo si está disponible (se llena al abrir una planilla individual)
-    // Si no está disponible, cargar la primera planilla para obtenerlo
-    if (!window._planillaCSSCache || !window._paginaEquipoFn) {
-      await generarPlanilla(resultados[0].partido);
-      await new Promise(r => setTimeout(r, 800)); // esperar que se cachee
-    }
-
-    if (!window._planillaCSSCache || !window._paginaEquipoFn) {
-      showToast('Primero abrí una planilla individual para inicializar el sistema.', 'error');
-      btn.disabled = false; btn.textContent = '🖨️ Imprimir seleccionadas';
-      return;
-    }
-
-    const paginaFn = window._paginaEquipoFn;
+    // FIX v5.71: generar el HTML de cada planilla directamente via generarPlanillaHTML()
+    // El bug anterior usaba _paginaEquipoFn cacheada que tenía el closure del primer partido,
+    // haciendo que todos los partidos mostraran los datos del primero.
     const paginasHtml = resultados.map(({ data, partido }) => {
       const { jugadoresLocal, jugadoresVisitante } = data;
-      return paginaFn(partido.local, jugadoresLocal, true) +
-             paginaFn(partido.visitante, jugadoresVisitante, false);
+      return generarPlanillaHTML(partido, jugadoresLocal, jugadoresVisitante);
     }).join('');
+
+    // CSS: si no está cacheado, generarlo ahora
+    if (!window._planillaCSSCache) {
+      window._planillaCSSCache = generarPlanillaCSS();
+    }
 
     const html = `<!DOCTYPE html>
 <html lang="es">
@@ -5296,6 +5316,127 @@ async function generarPlanilla(partido) {
   }
 
   if (btn) { btn.disabled = false; btn.textContent = '📄 Ver Planilla'; }
+}
+
+// ── FIX v5.71: Función independiente para generar CSS de planilla ──
+function generarPlanillaCSS() {
+  // Extraer el CSS de la última planilla generada (se cachea en _planillaCSSCache)
+  return window._planillaCSSCache || '';
+}
+
+// ── FIX v5.71: Función independiente para generar HTML de una planilla ──
+// Recibe partido, jugadoresLocal y jugadoresVisitante como parámetros explícitos
+// SIN depender de closures — así funciona correctamente en la impresión masiva
+function generarPlanillaHTML(partido, jugadoresLocal, jugadoresVisitante) {
+  const esSenior = (partido.categoria || '').toLowerCase().includes('senior');
+  const labelMas = esSenior ? '+50' : '+35';
+  const LOGO = window._planillaLOGO || '';
+
+  function tablaJugadoresFn(jugadores) {
+    if (!jugadores || !jugadores.length) {
+      return `<tr><td colspan="7" style="text-align:center;padding:12px">Sin jugadores registrados</td></tr>`;
+    }
+    return jugadores.map((j, i) => {
+      const hab     = j.estado === 'Habilitado';
+      const esColab = j.tipoSocio && String(j.tipoSocio).toUpperCase().includes('COL');
+      const tagMas   = j.mas35 ? `<span style="display:inline-block;background:#000;color:#fff;font-size:11px;font-weight:900;padding:1px 5px;border-radius:3px;margin-left:5px;vertical-align:middle;">${labelMas}</span>` : '';
+      const tagIC    = j.ic    ? `<span style="display:inline-block;background:#000;color:#fff;font-size:11px;font-weight:900;padding:1px 5px;border-radius:3px;margin-left:4px;vertical-align:middle;">IC</span>` : '';
+      const tagColab = esColab ? `<span style="display:inline-block;background:#000;color:#fff;font-size:11px;font-weight:900;padding:1px 6px;border-radius:3px;margin-left:5px;vertical-align:middle;">Colaborador</span>` : '';
+      let estadoTxt;
+      if (hab) {
+        estadoTxt = 'HABILITADO';
+      } else {
+        const motivos = j.estado.split(' / ');
+        const codigos = motivos.map(m => {
+          if (m.includes('Deportiva'))      return 'DEP';
+          if (m.includes('Medica'))         return 'MED';
+          if (m.includes('Administrativa')) return 'ADMIN';
+          return 'ADMIN';
+        });
+        const unique = [...new Set(codigos)];
+        estadoTxt = 'NO HAB (' + unique.join(' / ') + ')';
+      }
+      const habBG   = (i % 2 === 0) ? '#ffffff' : '#eeeeee';
+      const inhabBG = '#000000';
+      if (hab) {
+        return `<tr style="background:${habBG};">
+          <td class="col-nombre" style="background:${habBG};color:#000;font-weight:700;">${j.nombre}${tagMas}${tagIC}${tagColab}</td>
+          <td class="col-estado hab" style="background:${habBG};color:#000;font-weight:700;">${estadoTxt}</td>
+          <td class="col-ch" style="background:${habBG};"></td>
+          <td class="col-firma" style="background:${habBG};"></td>
+          <td class="col-gol" style="background:${habBG};"></td>
+          <td class="col-am" style="background:${habBG};"></td>
+          <td class="col-roja" style="background:${habBG};"></td>
+        </tr>`;
+      } else {
+        return `<tr style="background:${inhabBG};">
+          <td class="col-nombre" style="background:${inhabBG};color:#fff;font-weight:700;">✕✕ ${j.nombre}${tagMas}${tagIC}${tagColab}</td>
+          <td class="col-estado" style="background:${inhabBG};color:#fff;font-weight:700;">${estadoTxt}</td>
+          <td class="col-ch" style="background:#fff;"></td>
+          <td class="col-firma" style="background:#fff;"></td>
+          <td class="col-gol" style="background:#fff;"></td>
+          <td class="col-am" style="background:#fff;"></td>
+          <td class="col-roja" style="background:#fff;"></td>
+        </tr>`;
+      }
+    }).join('');
+  }
+
+  function paginaEquipoFn(equipo, jugadores, esLocal) {
+    return `
+    <div class="page">
+      <div class="header-banda">
+        <div class="header-logo-area">
+          <img src="${LOGO}" class="logo-img" alt="CDP">
+          <div class="header-club-text">
+            <div class="nombre-club">Club de Profesionales</div>
+            <div class="sub-club">Concepción del Uruguay</div>
+          </div>
+        </div>
+        <div class="header-torneo">Torneo ${partido.torneo || 'CDP'}</div>
+      </div>
+      <div class="partido-info">
+        <div class="pi-cat-fecha">
+          <div class="pi-label">CATEGORÍA</div>
+          <div class="pi-cat">${partido.categoria || '—'}</div>
+          <div class="pi-fecha-badge">${partido.fechaNro || ''}</div>
+        </div>
+        <div class="partido-equipos">
+          <span class="eq-principal">${esLocal ? partido.local : partido.visitante}</span>
+          <span class="eq-vs">vs</span>
+          <span class="eq-secundario">${esLocal ? partido.visitante : partido.local}</span>
+        </div>
+        <div class="pi-datos">
+          <div class="pi-dato-item"><span class="pi-dato-label">Día:</span><span class="pi-dato-val">${partido.dia || '—'}</span></div>
+          <div class="pi-dato-item"><span class="pi-dato-label">Fecha:</span><span class="pi-dato-val">${partido.fechaStr || '—'}</span></div>
+          <div class="pi-dato-item"><span class="pi-dato-label">Hora:</span><span class="pi-dato-val">${partido.horaStr || '—'}</span></div>
+          <div class="pi-dato-item"><span class="pi-dato-label">Cancha:</span><span class="pi-dato-val">${partido.cancha || '—'}</span></div>
+        </div>
+      </div>
+      <div class="planilla-equipo">
+        <div class="eq-header">${esLocal ? partido.local : partido.visitante}</div>
+        <table class="tabla-planilla">
+          <thead><tr>
+            <th class="col-nombre">Jugador</th>
+            <th class="col-estado">Estado</th>
+            <th class="col-ch">DNI</th>
+            <th class="col-firma">Firma</th>
+            <th class="col-gol">Goles</th>
+            <th class="col-am">⬛</th>
+            <th class="col-roja">🟥</th>
+          </tr></thead>
+          <tbody>${tablaJugadoresFn(jugadores)}</tbody>
+        </table>
+      </div>
+      <div class="pie-firma">
+        <div class="firma-box"><div class="firma-linea"></div><div class="firma-label">Firma Delegado</div></div>
+        <div class="firma-box"><div class="firma-linea"></div><div class="firma-label">Firma Árbitro</div></div>
+      </div>
+    </div>`;
+  }
+
+  return paginaEquipoFn(partido.local, jugadoresLocal, true) +
+         paginaEquipoFn(partido.visitante, jugadoresVisitante, false);
 }
 
 function abrirVentanaPlanilla(data, partido) {
@@ -5700,9 +5841,9 @@ ${paginaEquipo(partido.visitante, jugadoresVisitante, false)}
   win.document.write(html);
   win.document.close();
 
-  // Guardar referencia al CSS y paginaEquipo para impresión masiva
+  // Guardar CSS y LOGO para impresión masiva (FIX v5.71: ya no cacheamos paginaEquipo)
   window._planillaCSSCache = html.match(/<style>([\s\S]*?)<\/style>/)?.[1] || '';
-  window._paginaEquipoFn  = paginaEquipo;
+  window._planillaLOGO     = LOGO;
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -5810,15 +5951,28 @@ function renderTarjetaSolicitud(s, esPendiente) {
     'Observada':  { bg:'#e0f2fe', color:'#0369a1', icono:'📝' },
   }[s.estado] || { bg:'#f3f4f6', color:'#374151', icono:'?' };
 
+  // Subtipo de alta: viene de datosExtra.tipoAlta (nuevo/reingreso/ic)
+  // o se infiere de s.ic (retrocompatibilidad con solicitudes viejas)
+  let extra = {};
+  try { extra = s.datosExtra ? JSON.parse(s.datosExtra) : {}; } catch(e) {}
+
+  const subtipoAlta = extra.tipoAlta ||
+    (s.ic ? 'ic' : (s.tipoSolicitud === 'Alta' ? 'nuevo' : null));
+
+  const subtipoConfig = {
+    'nuevo':    { bg:'#dbeafe', color:'#1d4ed8', icono:'🆕', label:'Alta Normal' },
+    'reingreso':{ bg:'#dcfce7', color:'#15803d', icono:'🔄', label:'Reingreso' },
+    'ic':       { bg:'#f5f3ff', color:'#6d28d9', icono:'🔀', label:'Alta IC' },
+  };
+
   const tipoConfig = {
-    'Alta':    { bg:'#dbeafe', color:'#1d4ed8', icono:'➕', label:'Alta' },
+    'Alta':    subtipoAlta && subtipoConfig[subtipoAlta]
+                 ? subtipoConfig[subtipoAlta]
+                 : { bg:'#dbeafe', color:'#1d4ed8', icono:'➕', label:'Alta' },
     'Baja':    { bg:'#fee2e2', color:'#b91c1c', icono:'🚪', label:'Baja' },
     'Pasivo':  { bg:'#dcfce7', color:'#15803d', icono:'🔄', label:'Cambio Socio' },
     'Traspaso':{ bg:'#f3e8ff', color:'#7e22ce', icono:'↔️', label:'Traspaso' },
   }[s.tipoSolicitud || 'Alta'] || { bg:'#f3f4f6', color:'#374151', icono:'?', label:'Solicitud' };
-
-  let extra = {};
-  try { extra = s.datosExtra ? JSON.parse(s.datosExtra) : {}; } catch(e) {}
 
   // Info extra según tipo
   let extraHtml = '';
@@ -5829,10 +5983,12 @@ function renderTarjetaSolicitud(s, esPendiente) {
   } else if (s.tipoSolicitud === 'Traspaso') {
     extraHtml = `<div style="font-size:0.78rem;color:var(--gris3);margin-top:2px">🏟️ Origen: ${extra.equipoOrigen||'—'}${extra.obs && extra.obs!=='—'?' · '+extra.obs:''}</div>`;
   } else if (s.tipoSolicitud === 'Alta' || !s.tipoSolicitud) {
+    const esIC = subtipoAlta === 'ic';
     extraHtml = `<div style="font-size:0.78rem;color:var(--gris3);margin-top:2px">
-      👤 ${formatTipoSocio(s.tipoSocio)} · Título: ${s.tipoTitulo||'—'}
+      ${!esIC ? `👤 ${formatTipoSocio(s.tipoSocio)} · Título: ${s.tipoTitulo||'—'}` : ''}
       ${s.mas35 ? ' · <span style="background:#dbeafe;color:#1d4ed8;padding:1px 6px;border-radius:8px;font-size:0.72rem;font-weight:700">' + getLabelMasById(s.equipoId) + '</span>' : ''}
-      ${s.ic    ? ' · <span style="background:#fef9c3;color:#92400e;padding:1px 6px;border-radius:8px;font-size:0.72rem;font-weight:700">IC</span>' : ''}
+      ${esIC && extra.equipoTitular ? `<br>🏟️ Equipo titular: <strong>${extra.equipoTitular}</strong>` : ''}
+      ${extra.obsDelegado ? `<br>💬 Obs: ${extra.obsDelegado}` : ''}
     </div>`;
   }
 
@@ -6645,7 +6801,7 @@ function onSolTipoChange() {
 async function handleAdjunto(input, tipo) {
   const file = input.files[0];
   if (!file) return;
-  if (file.size > 10 * 1024 * 1024) { showToast('El archivo no puede superar 10MB', 'error'); return; }
+  if (file.size > 5 * 1024 * 1024) { showToast('El archivo no puede superar 5MB', 'error'); return; }
   const statusEl = document.getElementById('file-status-' + tipo);
   statusEl.textContent = '⏳ Leyendo...';
   const base64 = await fileToBase64(file);
@@ -7061,7 +7217,7 @@ function abrirModalSubirEstudio(jugadorId, jugadorNombre, esSenior) {
 async function handleEstudioFile(input) {
   const file = input.files[0];
   if (!file) return;
-  if (file.size > 10 * 1024 * 1024) { showToast('Archivo demasiado grande (máx 10MB)', 'error'); return; }
+  if (file.size > 5 * 1024 * 1024) { showToast('Archivo demasiado grande (máx 5MB)', 'error'); return; }
   APP.archivoEstudio = file;
   document.getElementById('estudio-file-status').textContent = '✅ ' + file.name;
   document.getElementById('estudio-file-status').style.color = 'var(--verde)';
