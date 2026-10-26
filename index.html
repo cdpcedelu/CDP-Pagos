@@ -1745,6 +1745,7 @@ function iniciarApp() {
       <button class="nav-tab" onclick="navTo('estudios-medicos-admin', this)">🩺 Estudios</button>
       <button class="nav-tab" onclick="navTo('salud-admin', this)">🏥 Salud</button>
       <button class="nav-tab" onclick="navTo('ocr-admin', this)">🤖 IA Check</button>
+      <button class="nav-tab" onclick="navTo('bajas-admin', this)">🚪 Bajas</button>
       <button class="nav-tab" onclick="navTo('configuracion', this)">⚙️ Config</button>
     `;
     renderAdmin();
@@ -1784,6 +1785,8 @@ function navTo(vista, btn) {
     renderEstadisticasAdmin();
   } else if (vista === 'ocr-admin') {
     renderOCRAdmin();
+  } else if (vista === 'bajas-admin') {
+    renderBajasAdmin();
   }
 }
 
@@ -5876,40 +5879,228 @@ async function limpiarHabManual(jugadorId) {
 }
 
 // ══════════════════════════════════════════════════════════════════
-// HISTORIAL DE BAJAS (admin)
+// BAJAS ADMIN — Pestaña completa
 // ══════════════════════════════════════════════════════════════════
-async function renderHistorialBajas() {
+// Estado de filtros de la pestaña bajas
+window._bajasState = { vista: 'todas', equipo: '', busqueda: '', deuda: false };
+
+async function renderBajasAdmin() {
   const cnt = document.getElementById('main-content');
-  cnt.innerHTML = '<div class="loading"><div class="spinner"></div> Cargando historial...</div>';
+  cnt.innerHTML = '<div class="loading"><div class="spinner"></div> Cargando bajas...</div>';
   try {
-    const data = await api('getHistorialBajas');
-    if (!data.ok) throw new Error(data.msg);
-    const h = data.historial;
-    cnt.innerHTML = `
-      <div class="card">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-          <div class="card-title" style="margin:0">📋 Historial de Bajas</div>
-          <button class="btn-sm btn-ver" onclick="renderGestionJugadores()">← Volver a Jugadores</button>
-        </div>
-        ${h.length === 0
-          ? '<div class="empty"><div class="empty-icon">📋</div>No hay bajas registradas.</div>'
-          : `<div class="tabla-wrapper"><table>
-              <thead><tr><th>Jugador</th><th>Equipo</th><th>Fecha Baja</th><th>Último mes pago</th><th>Motivo</th></tr></thead>
-              <tbody>
-                ${h.map(x => `<tr>
-                  <td class="jugador-nombre">${x.nombre}</td>
-                  <td style="font-size:0.78rem;color:var(--gris3)">${x.equipoId.replace(/_/g,' ')}</td>
-                  <td style="font-size:0.78rem">${x.fechaBaja}</td>
-                  <td style="font-size:0.78rem;font-weight:600">${x.ultimoMesPago||'—'}</td>
-                  <td style="font-size:0.78rem;color:var(--gris3)">${x.motivo||'—'}</td>
-                </tr>`).join('')}
-              </tbody>
-            </table></div>`}
+    const [dataH, dataBA] = await Promise.all([
+      api('getHistorialBajas'),
+      api('getBajasAutomaticas'),
+    ]);
+    if (!dataH.ok) throw new Error(dataH.msg);
+    const historial = dataH.historial || [];
+    const bajasAuto = (dataBA.ok ? dataBA.bajas : []) || [];
+
+    // Enriquecer historial con flag automática
+    const idsAuto = new Set(bajasAuto.map(b => String(b.jugadorId || b.id || '')));
+    historial.forEach(b => {
+      b.esAutomatica = idsAuto.has(String(b.jugadorId)) ||
+        (b.motivo || '').toLowerCase().includes('automática') ||
+        (b.motivo || '').toLowerCase().includes('automatica') ||
+        (b.motivo || '').toLowerCase().includes('falta de pago');
+    });
+
+    // Equipos únicos para filtro
+    const equipos = [...new Set(historial.map(b => b.equipoId))].sort();
+
+    // KPIs
+    const total     = historial.length;
+    const auto      = historial.filter(b => b.esAutomatica).length;
+    const noAuto    = total - auto;
+    const conDeuda  = historial.filter(b => b.motivo && b.motivo.toLowerCase().includes('deuda')).length;
+    const sinTipo   = historial.filter(b => !b.tipoSocio).length;
+
+    // Agrupar por equipo para chart
+    const porEquipo = {};
+    historial.forEach(b => {
+      porEquipo[b.equipoId] = (porEquipo[b.equipoId] || 0) + 1;
+    });
+    const topEquipos = Object.entries(porEquipo).sort((a,b)=>b[1]-a[1]).slice(0,8);
+    const maxEq = topEquipos[0]?.[1] || 1;
+
+    // Por mes
+    const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    const porMes = {};
+    historial.forEach(b => {
+      if (!b.fechaBaja) return;
+      const parts = b.fechaBaja.split('/');
+      if (parts.length < 2) return;
+      const m = parseInt(parts[1]) - 1;
+      const mes = MESES[m] || '?';
+      porMes[mes] = (porMes[mes] || 0) + 1;
+    });
+
+    function renderTabla(items) {
+      if (!items.length) return '<div class="empty" style="padding:32px">No hay bajas con los filtros aplicados.</div>';
+      return `<div class="tabla-wrapper">
+        <table>
+          <thead><tr>
+            <th>Jugador</th>
+            <th>Equipo</th>
+            <th>Tipo</th>
+            <th>Fecha Baja</th>
+            <th>Tipo Socio</th>
+            <th>Último Pago</th>
+            <th>Motivo</th>
+          </tr></thead>
+          <tbody>
+            ${items.map(b => `<tr style="${b.esAutomatica ? 'background:#fff8f0;' : ''}">
+              <td style="font-weight:600">${b.nombre}</td>
+              <td style="font-size:0.78rem;color:var(--gris3)">${(b.equipoId||'').replace(/_/g,' ')}</td>
+              <td style="text-align:center">
+                ${b.esAutomatica
+                  ? '<span style="background:#fef3c7;color:#92400e;padding:1px 7px;border-radius:8px;font-size:0.72rem;font-weight:700">🤖 Auto</span>'
+                  : '<span style="background:#e0f2fe;color:#0369a1;padding:1px 7px;border-radius:8px;font-size:0.72rem;font-weight:700">👤 Manual</span>'}
+              </td>
+              <td style="font-size:0.78rem">${b.fechaBaja||'—'}</td>
+              <td style="font-size:0.78rem;font-weight:600;color:${
+                b.tipoSocio === 'Activo' ? 'var(--verde)' :
+                b.tipoSocio === 'Pasivo' ? '#d97706' :
+                b.tipoSocio ? '#7c3aed' : 'var(--gris3)'
+              }">${b.tipoSocio||'—'}</td>
+              <td style="font-size:0.78rem;font-weight:600">${b.ultimoMesPago||'—'}</td>
+              <td style="font-size:0.78rem;color:var(--gris3);max-width:180px">${b.motivo||'—'}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
       </div>`;
+    }
+
+    cnt.innerHTML = `
+      <!-- KPIs -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:16px">
+        ${[
+          { icon:'🚪', label:'Total bajas',    val: total,   color:'var(--azul2)' },
+          { icon:'🤖', label:'Automáticas',    val: auto,    color:'#d97706' },
+          { icon:'👤', label:'Manuales',       val: noAuto,  color:'#0369a1' },
+          { icon:'📅', label:'Este año',       val: historial.filter(b=>(b.fechaBaja||'').includes('2026')).length, color:'var(--verde)' },
+        ].map(k => `
+          <div style="background:var(--gris0);border:1.5px solid var(--gris1);border-radius:12px;padding:14px;text-align:center">
+            <div style="font-size:1.5rem">${k.icon}</div>
+            <div style="font-size:1.6rem;font-weight:800;color:${k.color}">${k.val}</div>
+            <div style="font-size:0.75rem;color:var(--gris3);margin-top:2px">${k.label}</div>
+          </div>`).join('')}
+      </div>
+
+      <!-- Gráficos lado a lado -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+
+        <!-- Top equipos -->
+        <div class="card" style="margin:0">
+          <div class="card-title" style="margin-bottom:12px">📊 Top equipos con más bajas</div>
+          ${topEquipos.map(([eq, cnt2]) => `
+            <div style="margin-bottom:8px">
+              <div style="display:flex;justify-content:space-between;font-size:0.8rem;margin-bottom:3px">
+                <span style="font-weight:600">${eq.replace(/_/g,' ')}</span>
+                <span style="color:var(--azul2);font-weight:700">${cnt2}</span>
+              </div>
+              <div style="height:6px;background:var(--gris1);border-radius:3px">
+                <div style="height:100%;width:${Math.round(cnt2/maxEq*100)}%;background:var(--azul2);border-radius:3px"></div>
+              </div>
+            </div>`).join('')}
+        </div>
+
+        <!-- Por mes -->
+        <div class="card" style="margin:0">
+          <div class="card-title" style="margin-bottom:12px">📅 Bajas por mes (2026)</div>
+          <div style="display:flex;align-items:flex-end;gap:4px;height:100px">
+            ${MESES.map(m => {
+              const v = porMes[m] || 0;
+              const maxM = Math.max(...Object.values(porMes), 1);
+              const h = Math.round(v/maxM*100);
+              return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
+                <div style="font-size:0.65rem;color:var(--azul2);font-weight:700">${v||''}</div>
+                <div style="width:100%;height:${h}px;min-height:${v?4:0}px;background:${v?'var(--azul2)':'var(--gris1)'};border-radius:2px 2px 0 0"></div>
+                <div style="font-size:0.6rem;color:var(--gris3);text-align:center">${m.substring(0,3)}</div>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>
+      </div>
+
+      <!-- Filtros -->
+      <div class="card" style="margin-bottom:12px">
+        <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+          <div style="display:flex;gap:6px">
+            ${[
+              { key:'todas', label:'Todas', cnt: total },
+              { key:'auto',  label:'🤖 Automáticas', cnt: auto },
+              { key:'manual',label:'👤 Manuales', cnt: noAuto },
+            ].map(f => `
+              <button onclick="window._bajasState.vista='${f.key}'; aplicarFiltrosBajas(window._bajasData)"
+                style="padding:5px 12px;border-radius:20px;border:1.5px solid ${window._bajasState?.vista===f.key?'var(--azul2)':'var(--gris1)'};
+                background:${window._bajasState?.vista===f.key?'#eff6ff':'white'};
+                color:${window._bajasState?.vista===f.key?'var(--azul2)':'var(--texto)'};
+                font-size:0.8rem;font-weight:600;cursor:pointer">
+                ${f.label} <span style="opacity:0.6">(${f.cnt})</span>
+              </button>`).join('')}
+          </div>
+          <select id="filtro-baja-equipo" onchange="window._bajasState.equipo=this.value;aplicarFiltrosBajas(window._bajasData)"
+            style="padding:6px 10px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit;font-size:0.82rem">
+            <option value="">— Todos los equipos —</option>
+            ${equipos.map(e => `<option value="${e}">${e.replace(/_/g,' ')}</option>`).join('')}
+          </select>
+          <input id="filtro-baja-busqueda" type="text" placeholder="🔍 Buscar jugador..."
+            oninput="window._bajasState.busqueda=this.value;aplicarFiltrosBajas(window._bajasData)"
+            style="padding:6px 12px;border:1.5px solid var(--gris1);border-radius:8px;font-family:inherit;font-size:0.82rem;min-width:180px">
+          <span id="baja-count" style="font-size:0.8rem;color:var(--gris3);margin-left:auto"></span>
+        </div>
+      </div>
+
+      <!-- Tabla -->
+      <div class="card" id="tabla-bajas-container">
+        <div class="card-title" style="margin-bottom:12px">🚪 Listado de bajas</div>
+        <div id="tabla-bajas-body">
+          ${renderTabla(historial)}
+        </div>
+      </div>`;
+
+    // Guardar datos y función de render en window para los filtros
+    window._bajasData = historial;
+    window._bajasRenderTabla = renderTabla;
+
+    aplicarFiltrosBajas(historial);
+
   } catch(e) {
     cnt.innerHTML = `<div class="card"><div class="empty">Error: ${e.message}</div></div>`;
   }
 }
+
+function aplicarFiltrosBajas(historial) {
+  if (!historial) return;
+  const st = window._bajasState || {};
+  let items = [...historial];
+
+  if (st.vista === 'auto')   items = items.filter(b => b.esAutomatica);
+  if (st.vista === 'manual') items = items.filter(b => !b.esAutomatica);
+  if (st.equipo) items = items.filter(b => b.equipoId === st.equipo);
+  if (st.busqueda) {
+    const q = st.busqueda.toLowerCase();
+    items = items.filter(b => b.nombre.toLowerCase().includes(q));
+  }
+
+  const body = document.getElementById('tabla-bajas-body');
+  const count = document.getElementById('baja-count');
+  if (body && window._bajasRenderTabla) body.innerHTML = window._bajasRenderTabla(items);
+  if (count) count.textContent = items.length + ' registros';
+
+  // Actualizar estilos de botones de vista
+  document.querySelectorAll('[onclick*="_bajasState.vista"]').forEach(btn => {
+    const key = btn.getAttribute('onclick').match(/vista='(\w+)'/)?.[1];
+    const active = key === st.vista;
+    btn.style.borderColor = active ? 'var(--azul2)' : 'var(--gris1)';
+    btn.style.background  = active ? '#eff6ff' : 'white';
+    btn.style.color       = active ? 'var(--azul2)' : 'var(--texto)';
+  });
+}
+
+// Mantener compatibilidad con código que llama a renderHistorialBajas
+function renderHistorialBajas() { renderBajasAdmin(); }
 
 // ══════════════════════════════════════════════════════════════════
 // SOLICITUDES DE ALTA (admin)
