@@ -4133,7 +4133,7 @@ function renderHabilitacionesUI(cnt, data) {
             const nPasivo = jugadores.filter(j => (j.tipoSocio||'').toUpperCase() === 'PASIVO').length;
             const nColab  = jugadores.filter(j => (j.tipoSocio||'').toUpperCase().includes('COL')).length;
             const nIC     = jugadores.filter(j => j.ic && !((j.tipoSocio||'').toUpperCase() === 'PASIVO') && !((j.tipoSocio||'').toUpperCase().includes('COL'))).length;
-            const total   = jugadores.length;
+            const total   = nActivo + nColab; // v5.50: los pasivos no son jugadores (se muestran aparte)
             const alertaActivo = nActivo >= MAX_ACTIVOS;
             const alertaIC     = nIC >= MAX_IC;
             const fmtNum = (n, alerta) => alerta
@@ -4404,7 +4404,7 @@ async function renderGestionJugadores(equipoFiltro = '') {
                             <td style="font-size:0.78rem;color:${habColor};font-weight:600">${habLabel}</td>
                             <td>
                               <div class="btn-actions">
-                                <button class="btn-sm btn-ver" onclick="abrirModalEditarJugador('${j.id}','${j.nombre.replace(/'/g,"\\'")}','${j.equipoId}',${j.mas35},${j.ic},'${j.dni||''}','${j.tipoSocio||'Activo'}','${j.fechaNac||''}')">✏️ Editar</button>
+                                <button class="btn-sm btn-ver" onclick="abrirModalEditarJugador('${j.id}','${j.nombre.replace(/'/g,"\\'")}','${j.equipoId}',${j.mas35},${j.icRaw !== undefined ? j.icRaw : j.ic},'${j.dni||''}','${j.tipoSocio||'Activo'}','${j.fechaNac||''}')">✏️ Editar</button>
                                 <button class="btn-sm btn-ver" onclick="abrirModalTraspaso('${j.id}','${j.nombre.replace(/'/g,"\\'")}','${j.equipoId}')">🔄 Traspasar</button>
                                 ${j.habManual!=='SI' ? `<button class="btn-sm btn-aprobar" onclick="habilitarJugador('${j.id}','${j.nombre.replace(/'/g,"\\'")}')">✅ Habilitar</button>` : ''}
                                 ${j.habManual!=='NO' ? `<button class="btn-sm" style="background:#f59e0b;color:white" onclick="inhabilitarJugador('${j.id}','${j.nombre.replace(/'/g,"\\'")}')">⛔ Inhabilitar</button>` : ''}
